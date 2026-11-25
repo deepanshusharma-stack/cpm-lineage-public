@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "cpm-lineage: a platform-agnostic optimisation and diagnosis framework for CPM-billed ad platforms"
+abstract: >-
+  A Python library that decomposes a return-on-ad-spend move on a CPM-billed ad
+  platform exactly into conversion, selling price and CPM, attributes it to
+  levers, and builds a reviewable plan of typed actions. It ships with synthetic
+  data only; its thresholds are judgment defaults.
+authors:
+  - family-names: Sharma
+    given-names: Deepanshu
+version: "0.1.0"
+license: MIT
+repository-code: "https://github.com/deepanshusharma-stack/cpm-lineage-public"
+keywords:
+  - advertising
+  - cpm
+  - retail media
+  - attribution
+  - diagnostics

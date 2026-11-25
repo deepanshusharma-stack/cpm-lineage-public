@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 338" role="img" aria-labelledby="f5-title f5-desc" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="f5-title">One ledger row on a timeline</title>
+  <desc id="f5-desc">A plan is saved on 17 March. A card is marked applied on 18 March, which is d0. The before window is the seven days up to d0 and the after window the seven days from d0. The row is paired on 25 March. The 14-day row of the same card is due on 1 April and the 30-day row on 17 April; the data ends on 31 March.</desc>
+  <style>
+    .f5-ink{fill:#17202b}.f5-mut{fill:#5b6775}.f5-h{font-size:12.5px;font-weight:700}.f5-b{font-size:11px}.f5-xs{font-size:10.5px}
+    .f5-cap{font-size:10px;font-weight:700;letter-spacing:.09em}
+    .f5-ax{stroke:#17202b;stroke-width:1.4}.f5-tk{stroke:#17202b;stroke-width:1.2}
+    .f5-bf{fill:#e8ebfb;stroke:#3b4cc0;stroke-width:1}.f5-af{fill:#fdf1d8;stroke:#b45309;stroke-width:1}
+    .f5-ar{stroke:#5b6775;stroke-width:1.3;fill:none}.f5-dash{stroke:#8793a1;stroke-width:1.2;stroke-dasharray:4 4;fill:none}
+    .f5-box{fill:#fff;stroke:#c9d1da;stroke-width:1.1}
+  </style>
+  <defs><marker id="f5-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b6775"/></marker></defs>
+  <text class="f5-cap f5-mut" x="8" y="18">ONE LEDGER ROW: THE RAISE ON CMP-WINNER, 7-DAY HORIZON</text>
+
+  <rect class="f5-bf" x="153" y="96" width="77" height="36" rx="4"/>
+  <text class="f5-b f5-ink" x="191.5" y="111" text-anchor="middle" font-weight="700">before</text>
+  <text class="f5-xs f5-mut" x="191.5" y="125" text-anchor="middle">ROAS 5.248</text>
+  <rect class="f5-af" x="230" y="96" width="77" height="36" rx="4"/>
+  <text class="f5-b f5-ink" x="268.5" y="111" text-anchor="middle" font-weight="700">after</text>
+  <text class="f5-xs f5-mut" x="268.5" y="125" text-anchor="middle">ROAS 5.585</text>
+
+  <line class="f5-ax" x1="20" y1="146" x2="700" y2="146"/>
+  <g class="f5-tk">
+    <line x1="153" y1="140" x2="153" y2="152"/><line x1="219" y1="140" x2="219" y2="152"/>
+    <line x1="230" y1="134" x2="230" y2="158"/><line x1="307" y1="140" x2="307" y2="152"/>
+    <line x1="384" y1="140" x2="384" y2="152"/><line x1="560" y1="140" x2="560" y2="152"/>
+  </g>
+  <line class="f5-dash" x1="373" y1="74" x2="373" y2="146"/>
+  <text class="f5-xs f5-mut" x="378.5" y="84">data ends 31 Mar</text>
+
+  <g class="f5-xs f5-mut" text-anchor="middle">
+    <text x="153" y="170">11 Mar</text><text x="153" y="184">d0 - 7</text>
+    <text x="307" y="170">25 Mar</text><text x="307" y="184">d0 + 7</text>
+    <text x="384" y="170">1 Apr</text><text x="384" y="184">d0 + 14</text>
+    <text x="560" y="170">17 Apr</text><text x="560" y="184">d0 + 30</text>
+  </g>
+  <text class="f5-b f5-ink" x="230" y="172" text-anchor="middle" font-weight="700">18 Mar</text>
+  <text class="f5-xs f5-mut" x="230" y="186" text-anchor="middle">d0: applied</text>
+
+  <path class="f5-ar" d="M219 82V94" marker-end="url(#f5-a)"/>
+  <text class="f5-b f5-ink" x="212.4" y="48" text-anchor="end" font-weight="700">17 Mar: plan saved</text>
+  <text class="f5-xs f5-mut" x="212.4" y="62" text-anchor="end">one row per card and horizon,</text>
+  <text class="f5-xs f5-mut" x="212.4" y="76" text-anchor="end">also for vetoed cards</text>
+
+  <path class="f5-ar" d="M307 66V138" marker-end="url(#f5-a)"/>
+  <text class="f5-b f5-ink" x="313.6" y="48" font-weight="700">25 Mar: paired, once the feed covers the after window</text>
+  <text class="f5-xs f5-mut" x="313.6" y="62">a paired row never changes</text>
+  <text class="f5-xs f5-mut" x="560" y="116" text-anchor="middle">the 14 and 30-day rows of the</text>
+  <text class="f5-xs f5-mut" x="560" y="130" text-anchor="middle">card are paired on these dates</text>
+
+  <rect class="f5-box" x="8" y="212" width="436" height="112" rx="10"/>
+  <text class="f5-h f5-ink" x="20" y="235">The label, by hand</text>
+  <text class="f5-b f5-mut" x="20" y="257">tide = segment sales after / before = 1.027</text>
+  <text class="f5-b f5-mut" x="20" y="275">expectation = 5.248 x sqrt(1.027) = 5.318</text>
+  <text class="f5-b f5-mut" x="20" y="293">a raise is On Track at 85% of that: 4.520</text>
+  <text class="f5-b f5-mut" x="20" y="311">ROAS after is 5.585</text>
+  <rect x="312" y="222" width="120" height="28" rx="14" fill="#e6f3f1" stroke="#0f766e"/>
+  <text class="f5-h" fill="#0f766e" x="372" y="241" text-anchor="middle">On Track</text>
+
+  <path class="f5-ar" d="M444 268H458" marker-end="url(#f5-a)"/>
+  <rect class="f5-box" x="460" y="212" width="252" height="112" rx="10"/>
+  <text class="f5-h f5-ink" x="472" y="235">What it feeds</text>
+  <text class="f5-b f5-mut" x="472" y="257">7-day labels become a win rate per</text>
+  <text class="f5-b f5-mut" x="472" y="273">family. From 5 paired outcomes it</text>
+  <text class="f5-b f5-mut" x="472" y="289">moves confidence by up to 10 points</text>
+  <text class="f5-b f5-mut" x="472" y="305">and replaces the 0.5 success prior.</text>
+</svg>

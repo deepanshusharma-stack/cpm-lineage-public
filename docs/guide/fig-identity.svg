@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-labelledby="f2-title f2-desc" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="f2-title">The identity on the worked example</title>
+  <desc id="f2-desc">Signed log-point contributions of conversion, price and CPM to the ROAS move. Account: conversion -0.038, price +0.032, CPM -0.080, total -0.085. Entity cmp-generic: conversion +0.023, price -0.006, CPM -0.236, total -0.219.</desc>
+  <style>
+    .f2-ink{fill:#17202b}.f2-mut{fill:#5b6775}.f2-h{font-size:13px;font-weight:700}.f2-l{font-size:12px}
+    .f2-v{font-size:11.5px;font-variant-numeric:tabular-nums}.f2-xs{font-size:10.5px}
+    .f2-neg{fill:#c2410c}.f2-pos{fill:#0f766e}.f2-tot{fill:#17202b}
+    .f2-ax{stroke:#17202b;stroke-width:1.2}.f2-grid{stroke:#dfe4ea;stroke-width:1}
+    .f2-panel{fill:#fff;stroke:#c9d1da;stroke-width:1.1}
+  </style>
+  <rect class="f2-panel" x="5" y="6" width="350" height="252" rx="10"/>
+  <text class="f2-h f2-ink" x="17" y="30">Account</text>
+  <text class="f2-l f2-mut" x="79" y="30">ROAS 3.04 to 2.79</text>
+  <line class="f2-grid" x1="175.0" y1="48" x2="175.0" y2="228"/><line class="f2-grid" x1="80.0" y1="48" x2="80.0" y2="228"/>
+  <line class="f2-ax" x1="270" y1="48" x2="270" y2="228"/>
+  <line x1="17" y1="183" x2="343" y2="183" stroke="#c9d1da"/>
+  <text class="f2-xs f2-mut" x="270" y="244" text-anchor="middle">0</text>
+  <text class="f2-xs f2-mut" x="175.0" y="244" text-anchor="middle">-0.10</text>
+  <text class="f2-xs f2-mut" x="80.0" y="244" text-anchor="middle">-0.20</text>
+  <text class="f2-l f2-ink" x="17" y="78">ICR</text>
+  <text class="f2-xs f2-mut" x="17" y="91">conversion</text>
+  <rect class="f2-neg" x="234.3" y="62" width="35.7" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="228.3" y="78.5" text-anchor="end">-0.038</text>
+  <text class="f2-l f2-ink" x="17" y="120">ASP</text>
+  <text class="f2-xs f2-mut" x="17" y="133">price</text>
+  <rect class="f2-pos" x="270.0" y="104" width="30.4" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="306.4" y="120.5">+0.032</text>
+  <text class="f2-l f2-ink" x="17" y="162">CPM</text>
+  <text class="f2-xs f2-mut" x="17" y="175">cost, sign flipped</text>
+  <rect class="f2-neg" x="194.3" y="146" width="75.7" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="188.3" y="162.5" text-anchor="end">-0.080</text>
+  <text class="f2-l f2-ink" font-weight='700' x="17" y="212">ROAS</text>
+  <text class="f2-xs f2-mut" x="17" y="225">the sum, exact</text>
+  <rect class="f2-tot" x="189.0" y="196" width="81.0" height="24" rx="3"/>
+  <text class="f2-v f2-ink" font-weight="700" x="183.0" y="212.5" text-anchor="end">-0.085</text>
+  <rect class="f2-panel" x="365" y="6" width="350" height="252" rx="10"/>
+  <text class="f2-h f2-ink" x="377" y="30">cmp-generic</text>
+  <text class="f2-l f2-mut" x="465" y="30">holds the planted CPM spike</text>
+  <line class="f2-grid" x1="545.0" y1="48" x2="545.0" y2="228"/><line class="f2-grid" x1="450.0" y1="48" x2="450.0" y2="228"/>
+  <line class="f2-ax" x1="640" y1="48" x2="640" y2="228"/>
+  <line x1="377" y1="183" x2="703" y2="183" stroke="#c9d1da"/>
+  <text class="f2-xs f2-mut" x="640" y="244" text-anchor="middle">0</text>
+  <text class="f2-xs f2-mut" x="545.0" y="244" text-anchor="middle">-0.10</text>
+  <text class="f2-xs f2-mut" x="450.0" y="244" text-anchor="middle">-0.20</text>
+  <text class="f2-l f2-ink" x="377" y="78">ICR</text>
+  <rect class="f2-pos" x="640.0" y="62" width="21.9" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="667.9" y="78.5">+0.023</text>
+  <text class="f2-l f2-ink" x="377" y="120">ASP</text>
+  <rect class="f2-neg" x="634.1" y="104" width="5.9" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="628.1" y="120.5" text-anchor="end">-0.006</text>
+  <text class="f2-l f2-ink" x="377" y="162">CPM</text>
+  <rect class="f2-neg" x="416.2" y="146" width="223.8" height="24" rx="3"/>
+  <text class="f2-v" fill="#fff" x="424.2" y="162.5">-0.236</text>
+  <text class="f2-l f2-ink" font-weight='700' x="377" y="212">ROAS</text>
+  <rect class="f2-tot" x="432.1" y="196" width="207.9" height="24" rx="3"/>
+  <text class="f2-v" fill="#fff" font-weight="700" x="440.1" y="212.5">-0.219</text>
+  <text class="f2-xs f2-mut" x="5" y="278">Signed log-point contributions to d ln ROAS, 2026-03-02..03-31 against 2026-01-31..03-01. Both panels share one scale. A CPM rise</text>
+  <text class="f2-xs f2-mut" x="5" y="293">is drawn as a negative bar because CPM enters the identity as a divisor. Source: SyntheticAdapter(), seed 7.</text>
+</svg>

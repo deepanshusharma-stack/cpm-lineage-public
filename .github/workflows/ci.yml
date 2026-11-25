@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the leak scan reads commit metadata of the whole history
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Tests
+        run: python -m pytest -q
+      - name: Examples
+        run: |
+          python examples/quickstart.py > /dev/null
+          python examples/bring_your_own_data.py > /dev/null
+          python examples/custom_platform_adapter.py > /dev/null
+          python docs/guide/worked_example.py > /dev/null
+      - name: Threshold reference is up to date
+        run: python tools/gen_thresholds.py --check
+      - name: DataFrame adapter (pandas extra)
+        if: matrix.python-version == '3.12'
+        run: |
+          python -m pip install -e ".[pandas]"
+          python -m pytest -q tests/foundation
+      - name: Build
+        if: matrix.python-version == '3.12'
+        run: |
+          python -m pip install build
+          python -m build
+      - name: Leak scan (tree and commit history, structural shapes only)
+        run: python tools/leak_scan.py --quiet --history

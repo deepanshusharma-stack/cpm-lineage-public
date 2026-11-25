@@ -1,0 +1,2459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How cpm-lineage works</title>
+<meta name="author" content="Deepanshu Sharma">
+<meta name="description" content="A practitioner's guide to the cpm_lineage library: one worked example from input rows to scored outcomes.">
+<style>
+:root{
+  --ink:#17202b; --mut:#5b6775; --line:#d5dbe2; --soft:#f4f6f8; --paper:#ffffff;
+  --dg:#0f766e; --dg-soft:#e6f3f1; --pl:#3b4cc0; --pl-soft:#e8ebfb; --ld:#b45309; --ld-soft:#fdf1d8;
+  --sans:Inter,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:#e9edf1;color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;
+  font-feature-settings:"cv05","cv08","ss03"}
+.sheet{max-width:880px;margin:0 auto;background:var(--paper);padding:0 56px 72px}
+a{color:var(--pl);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* cover */
+.cover{min-height:92vh;display:flex;flex-direction:column;padding:72px 0 40px;border-bottom:1px solid var(--line)}
+.cover .kicker{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--dg);text-transform:uppercase}
+.cover h1{font-size:54px;line-height:1.04;letter-spacing:-.025em;margin:18px 0 14px;font-weight:800;text-wrap:balance}
+.cover .sub{font-size:19px;line-height:1.45;color:var(--mut);max-width:34em;margin:0}
+.cover .meta{margin-top:26px;font-size:13.5px;color:var(--mut)}
+.cover .meta b{color:var(--ink);font-weight:600}
+.cover .steps{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:44px 0 0;padding:0;list-style:none}
+.cover .steps li{border-top:3px solid var(--line);padding-top:10px;font-size:11.5px;line-height:1.35;color:var(--mut)}
+.cover .steps li b{display:block;font-size:22px;line-height:1;color:var(--ink);margin-bottom:6px;font-weight:800}
+.cover .steps li.dg{border-color:var(--dg)} .cover .steps li.pl{border-color:var(--pl)} .cover .steps li.ld{border-color:var(--ld)}
+.cover .note{margin-top:auto;padding:16px 18px;background:var(--soft);border-left:3px solid var(--ld);font-size:13px;
+  line-height:1.5;color:var(--ink);max-width:46em}
+.cover .note b{font-weight:700}
+
+/* contents */
+.toc{padding:44px 0 8px}
+.toc h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin:0 0 14px;font-weight:700;border:0;padding:0}
+.toc ol{list-style:none;margin:0;padding:0;columns:2;column-gap:40px}
+.toc li{break-inside:avoid;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px;display:flex;gap:12px}
+.toc li span{color:var(--mut);font-variant-numeric:tabular-nums;min-width:1.6em}
+.toc li a{color:var(--ink)}
+
+/* body */
+main h2{font-size:26px;line-height:1.2;letter-spacing:-.015em;margin:56px 0 14px;padding-top:18px;border-top:1px solid var(--line);
+  font-weight:800;text-wrap:balance}
+main h2 .num{color:var(--mut);font-weight:600;margin-right:.35em;font-variant-numeric:tabular-nums}
+main h2.step{display:flex;align-items:center;gap:14px;border-top:0;padding-top:0}
+main h2.step .badge{flex:none;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:58px;height:58px;
+  border-radius:14px;color:#fff;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;line-height:1}
+main h2.step .badge b{font-size:24px;letter-spacing:0;margin-top:4px;font-weight:800}
+main h2.step.dg .badge{background:var(--dg)} main h2.step.pl .badge{background:var(--pl)} main h2.step.ld .badge{background:var(--ld)}
+main h3{font-size:17.5px;line-height:1.3;margin:34px 0 8px;font-weight:700;letter-spacing:-.005em}
+main p{margin:0 0 12px}
+main ul,main ol{margin:0 0 12px;padding-left:22px}
+main li{margin:3px 0}
+main p.q{font-size:17px;line-height:1.45;font-weight:600;color:var(--ink);margin:4px 0 16px;padding-left:14px;border-left:3px solid var(--line)}
+main p.q strong{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:700;margin-bottom:3px}
+section.dg p.q{border-color:var(--dg)} section.pl p.q{border-color:var(--pl)} section.ld p.q{border-color:var(--ld)}
+main p.lead strong:first-child{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:700;margin-right:.3em}
+
+code{font-family:var(--mono);font-size:.86em;background:var(--soft);padding:.08em .32em;border-radius:4px;font-variant-ligatures:none}
+pre{font-family:var(--mono);font-size:11.6px;line-height:1.5;background:var(--soft);border:1px solid var(--line);border-left:3px solid var(--mut);
+  border-radius:6px;padding:12px 14px;margin:0 0 14px;overflow-x:auto;white-space:pre;font-variant-ligatures:none}
+pre code{background:none;padding:0;font-size:inherit;border-radius:0}
+pre.out{border-left-color:var(--ink);background:#f7f8fa}
+section.dg pre.out{border-left-color:var(--dg)} section.pl pre.out{border-left-color:var(--pl)} section.ld pre.out{border-left-color:var(--ld)}
+pre.formula{background:#fff;border-left-color:var(--line)}
+
+.tbl{margin:0 0 16px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.4}
+th{text-align:left;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--mut);font-weight:700;
+  padding:7px 10px 7px 0;border-bottom:1.5px solid var(--ink);vertical-align:bottom}
+td{padding:7px 10px 7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+td:last-child,th:last-child{padding-right:0}
+td code{white-space:nowrap}
+td:first-child code{font-weight:600}
+
+figure{margin:20px 0 22px;padding:0}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:12.5px;color:var(--mut);margin-top:8px;line-height:1.4}
+figcaption b{color:var(--ink)}
+
+blockquote{margin:16px 0 18px;padding:12px 16px;background:var(--ld-soft);border-left:3px solid var(--ld);border-radius:0 6px 6px 0}
+blockquote p{margin:0;font-size:13.5px;line-height:1.5}
+blockquote strong:first-child{color:#8a4107}
+
+ul.check{list-style:none;padding-left:0}
+ul.check li{position:relative;padding-left:26px;margin:6px 0}
+ul.check li::before{content:"";position:absolute;left:0;top:.28em;width:13px;height:13px;border:1.5px solid var(--ink);border-radius:3px}
+
+.faq p.fq{font-weight:700;margin:20px 0 4px;font-size:15.5px}
+footer.end{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--mut)}
+
+@media (max-width:720px){
+  .sheet{padding:0 20px 48px}
+  .cover h1{font-size:38px}
+  .cover .steps{grid-template-columns:repeat(4,1fr)}
+  .toc ol{columns:1}
+  main h2{font-size:22px}
+}
+
+@page{size:A4;margin:17mm 15mm 18mm 15mm}
+@media print{
+  html,body{background:#fff}
+  body{font-size:9.6pt;line-height:1.48}
+  .sheet{max-width:none;padding:0;margin:0}
+  a{color:inherit}
+  .cover{min-height:0;height:258mm;padding:26mm 0 0;border:0;break-after:page}
+  .cover h1{font-size:44pt}
+  .cover .sub{font-size:14pt}
+  .cover .meta{font-size:10pt}
+  .cover .steps li{font-size:8.2pt}
+  .cover .note{font-size:9.4pt}
+  .toc{padding:0;break-after:page}
+  .toc li{font-size:10.4pt;padding:6pt 0}
+  main h2{font-size:18pt;margin:22pt 0 9pt;padding-top:11pt;break-after:avoid}
+  main h2.brk{break-before:page;margin-top:0;border-top:0;padding-top:0}
+  main h2.step .badge{width:40pt;height:40pt;border-radius:9pt;font-size:6.6pt}
+  main h2.step .badge b{font-size:16pt;margin-top:2pt}
+  main h3{font-size:12pt;margin:17pt 0 5pt;break-after:avoid}
+  main p{margin:0 0 7pt;orphans:3;widows:3}
+  main p.q{font-size:11.4pt;margin:2pt 0 10pt}
+  main p.q strong{font-size:7.4pt}
+  main p.lead strong:first-child{font-size:7.4pt}
+  main p.lead{break-after:avoid}
+  pre{font-size:7.35pt;line-height:1.45;padding:7pt 9pt;margin:0 0 9pt;overflow:visible;break-inside:avoid}
+  table{font-size:8.5pt}
+  th{font-size:6.9pt;padding:4pt 7pt 4pt 0}
+  td{padding:4pt 7pt 4pt 0}
+  tr{break-inside:avoid}
+  thead{display:table-header-group}
+  .tbl{overflow:visible;margin-bottom:10pt}
+  figure{break-inside:avoid;margin:10pt 0 12pt}
+  figcaption{font-size:8.2pt;margin-top:5pt}
+  blockquote{break-inside:avoid;padding:8pt 11pt;margin:9pt 0 11pt}
+  blockquote p{font-size:9pt}
+  ul.check li{break-inside:avoid}
+  .faq p.fq{font-size:10.4pt;margin:11pt 0 2pt;break-after:avoid}
+  footer.end{font-size:8pt;margin-top:22pt}
+}
+</style>
+</head>
+<body>
+<div class="sheet">
+<header class="cover">
+  <div class="kicker">cpm-lineage 0.1.0 &middot; practitioner's guide</div>
+  <h1>How cpm-lineage works</h1>
+  <p class="sub">One account, followed from the rows you feed in to the scored outcome of an action.
+  What each step asks, the formula in one line, the thresholds that matter, and what the output looks like.</p>
+  <p class="meta">Written by <b>Deepanshu Sharma</b> &nbsp;&middot;&nbsp; for performance marketers and engineers
+  &nbsp;&middot;&nbsp; MIT licence</p>
+  <ol class="steps"><li class="dg"><b>1</b>Identity: which channel moved</li><li class="dg"><b>2</b>Attribution: which lever</li><li class="dg"><b>3</b>Budget, keyword and CPM checks</li><li class="pl"><b>4</b>Rule families propose cards</li><li class="pl"><b>5</b>Pipeline resolves and caps</li><li class="pl"><b>6</b>Verdicts type every card</li><li class="ld"><b>7</b>Ledger scores what happened</li></ol>
+  <div class="note"><b>About the numbers.</b> Every figure in this guide was produced by running the library on its own
+  seeded synthetic dataset (seed 7, 90 days, five planted events). No data from a real account is in the
+  repository, so nothing here is a claim about real-world performance. The commands that reproduce each
+  number are given where it appears.</div>
+</header>
+<nav class="toc" aria-label="Contents">
+  <h2>Contents</h2>
+  <ol>
+<li><span>1</span><a href="#1-the-flow-in-one-picture">The flow in one picture</a></li>
+<li><span>2</span><a href="#2-the-data-you-feed-in">The data you feed in</a></li>
+<li><span>3</span><a href="#3-step-1-the-identity-tells-you-which-channel-moved">Step 1: the identity tells you which channel moved</a></li>
+<li><span>4</span><a href="#4-step-2-attribution-names-the-lever">Step 2: attribution names the lever</a></li>
+<li><span>5</span><a href="#5-step-3-budget-keyword-and-cpm-checks">Step 3: budget, keyword and CPM checks</a></li>
+<li><span>6</span><a href="#6-step-4-rule-families-propose-cards">Step 4: rule families propose cards</a></li>
+<li><span>7</span><a href="#7-step-5-the-pipeline-resolves-conflicts-and-caps-the-plan">Step 5: the pipeline resolves conflicts and caps the plan</a></li>
+<li><span>8</span><a href="#8-step-6-verdicts">Step 6: verdicts</a></li>
+<li><span>9</span><a href="#9-step-7-the-ledger-scores-what-happened">Step 7: the ledger scores what happened</a></li>
+<li><span>10</span><a href="#10-bringing-your-own-platform">Bringing your own platform</a></li>
+<li><span>11</span><a href="#11-map-of-the-public-api">Map of the public API</a></li>
+<li><span>12</span><a href="#12-what-was-measured">What was measured</a></li>
+<li><span>13</span><a href="#13-limits">Limits</a></li>
+<li><span>14</span><a href="#14-glossary">Glossary</a></li>
+<li><span>15</span><a href="#15-faq">FAQ</a></li>
+  </ol>
+</nav>
+<main>
+<section class="plain"><h2 id="1-the-flow-in-one-picture" class=""><span class="num">1</span>The flow in one picture</h2>
+<p>The library has two entry points. <code>diagnose(data)</code> answers "what happened, and why". <code>plan(data)</code>
+answers "what should be done". Both are pure functions over plain dataclasses: no network, no
+database, and the clock is the latest date in your data, so the same input gives the same output.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 486" role="img" aria-labelledby="f1-title f1-desc" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="f1-title">The end-to-end flow of cpm-lineage</title>
+  <desc id="f1-desc">Feeds enter two entry points. diagnose runs the identity, attribution and the budget, keyword and CPM checks. plan runs the rule families, the pipeline and the verdict spine. An operator applies cards, the ledger scores them, and realised win rates feed back into the next plan.</desc>
+  <style>
+    .f1-ink{fill:#17202b}.f1-mut{fill:#5b6775}.f1-b{font-size:11px}
+    .f1-h{font-size:12.5px;font-weight:700}.f1-cap{font-size:10px;font-weight:700;letter-spacing:.09em}
+    .f1-box{fill:#fff;stroke:#c9d1da;stroke-width:1.1}
+    .f1-dg{fill:#e6f3f1;stroke:#0f766e;stroke-width:1.1}.f1-pl{fill:#e8ebfb;stroke:#3b4cc0;stroke-width:1.1}
+    .f1-ld{fill:#fdf1d8;stroke:#b45309;stroke-width:1.1}
+    .f1-ar{stroke:#5b6775;stroke-width:1.4;fill:none}.f1-fb{stroke:#b45309;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+    .f1-n{font-size:11.5px;font-weight:700;fill:#fff}
+  </style>
+  <defs>
+    <marker id="f1-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b6775"/></marker>
+    <marker id="f1-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b45309"/></marker>
+  </defs>
+
+  <rect class="f1-box" x="8" y="30" width="136" height="374" rx="10"/>
+  <text class="f1-cap f1-mut" x="20" y="52">YOUR DATA</text>
+  <text class="f1-h f1-ink" x="20" y="76">PerfRow</text>
+  <text class="f1-b f1-mut" x="20" y="93">required: date, entity,</text>
+  <text class="f1-b f1-mut" x="20" y="108">spend, impressions;</text>
+  <text class="f1-b f1-mut" x="20" y="123">sales, units for ROAS</text>
+  <line x1="20" y1="138" x2="132" y2="138" stroke="#c9d1da"/>
+  <text class="f1-cap f1-mut" x="20" y="161">OPTIONAL FEEDS</text>
+  <text class="f1-b f1-ink" x="20" y="186">Entity</text>
+  <text class="f1-b f1-ink" x="20" y="203">TargetingUnit</text>
+  <text class="f1-b f1-ink" x="20" y="220">Product</text>
+  <text class="f1-b f1-ink" x="20" y="237">MarketRow</text>
+  <text class="f1-b f1-ink" x="20" y="254">OfftakeRow</text>
+  <text class="f1-b f1-ink" x="20" y="271">ShelfRow</text>
+  <text class="f1-b f1-ink" x="20" y="288">BudgetDayRow</text>
+  <text class="f1-b f1-ink" x="20" y="305">ChangeEvent</text>
+  <line x1="20" y1="320" x2="132" y2="320" stroke="#c9d1da"/>
+  <text class="f1-h f1-ink" x="20" y="344">PlatformProfile</text>
+  <text class="f1-b f1-mut" x="20" y="361">what differs between</text>
+  <text class="f1-b f1-mut" x="20" y="376">platforms, declared</text>
+  <text class="f1-b f1-mut" x="20" y="391">once</text>
+
+  <rect class="f1-dg" x="162" y="30" width="412" height="178" rx="12"/>
+  <text class="f1-h" fill="#0f766e" x="176" y="52">diagnose(data)</text>
+  <text class="f1-b f1-mut" x="276" y="52">what happened, and why</text>
+    <rect class="f1-box" x="172" y="62" width="126" height="92" rx="8"/>
+    <circle cx="190" cy="82" r="10.5" fill="#0f766e"/><text class="f1-n" x="190" y="86" text-anchor="middle">1</text>
+    <text class="f1-h f1-ink" x="206" y="86.5">Identity</text>
+    <text class="f1-b f1-mut" x="183" y="109.0">ROAS = ICR1k x ASP</text>
+    <text class="f1-b f1-mut" x="183" y="123.5">/ CPM: an exact</text>
+    <text class="f1-b f1-mut" x="183" y="138.0">split, no model</text>
+    <rect class="f1-box" x="305" y="62" width="126" height="92" rx="8"/>
+    <circle cx="323" cy="82" r="10.5" fill="#0f766e"/><text class="f1-n" x="323" y="86" text-anchor="middle">2</text>
+    <text class="f1-h f1-ink" x="339" y="86.5">Attribution</text>
+    <text class="f1-b f1-mut" x="316" y="109.0">11 levers, two</text>
+    <text class="f1-b f1-mut" x="316" y="123.5">regressions, a jury,</text>
+    <text class="f1-b f1-mut" x="316" y="138.0">one verdict</text>
+    <rect class="f1-box" x="438" y="62" width="126" height="92" rx="8"/>
+    <circle cx="456" cy="82" r="10.5" fill="#0f766e"/><text class="f1-n" x="456" y="86" text-anchor="middle">3</text>
+    <text class="f1-h f1-ink" x="472" y="86.5">Checks</text>
+    <text class="f1-b f1-mut" x="449" y="109.0">budget, CPM,</text>
+    <text class="f1-b f1-mut" x="449" y="123.5">keywords, stock,</text>
+    <text class="f1-b f1-mut" x="449" y="138.0">collisions</text>
+  <path class="f1-ar" d="M298 108H304" marker-end="url(#f1-a)"/>
+  <path class="f1-ar" d="M431 108H437" marker-end="url(#f1-a)"/>
+  <rect x="172" y="164" width="392" height="32" rx="6" fill="#fff" stroke="#0f766e" stroke-width="1"/>
+  <text class="f1-b f1-ink" x="184" y="184"><tspan font-weight="700">Diagnosis</tspan>   typed findings and a read per entity</text>
+
+  <rect class="f1-pl" x="162" y="226" width="412" height="178" rx="12"/>
+  <text class="f1-h" fill="#3b4cc0" x="176" y="248">plan(data)</text>
+  <text class="f1-b f1-mut" x="246" y="248">what should be done</text>
+    <rect class="f1-box" x="172" y="258" width="126" height="92" rx="8"/>
+    <circle cx="190" cy="278" r="10.5" fill="#3b4cc0"/><text class="f1-n" x="190" y="282" text-anchor="middle">4</text>
+    <text class="f1-h f1-ink" x="206" y="282.5">Rule families</text>
+    <text class="f1-b f1-mut" x="183" y="305.0">eight families</text>
+    <text class="f1-b f1-mut" x="183" y="319.5">propose candidate</text>
+    <text class="f1-b f1-mut" x="183" y="334.0">cards</text>
+    <rect class="f1-box" x="305" y="258" width="126" height="92" rx="8"/>
+    <circle cx="323" cy="278" r="10.5" fill="#3b4cc0"/><text class="f1-n" x="323" y="282" text-anchor="middle">5</text>
+    <text class="f1-h f1-ink" x="339" y="282.5">Pipeline</text>
+    <text class="f1-b f1-mut" x="316" y="305.0">holdout, conflicts,</text>
+    <text class="f1-b f1-mut" x="316" y="319.5">confidence, caps,</text>
+    <text class="f1-b f1-mut" x="316" y="334.0">waves</text>
+    <rect class="f1-box" x="438" y="258" width="126" height="92" rx="8"/>
+    <circle cx="456" cy="278" r="10.5" fill="#3b4cc0"/><text class="f1-n" x="456" y="282" text-anchor="middle">6</text>
+    <text class="f1-h f1-ink" x="472" y="282.5">Verdicts</text>
+    <text class="f1-b f1-mut" x="449" y="305.0">ACT, OBSERVE,</text>
+    <text class="f1-b f1-mut" x="449" y="319.5">HOLD, ESCALATE,</text>
+    <text class="f1-b f1-mut" x="449" y="334.0">NO-ACTION</text>
+  <path class="f1-ar" d="M298 304H304" marker-end="url(#f1-a)"/>
+  <path class="f1-ar" d="M431 304H437" marker-end="url(#f1-a)"/>
+  <rect x="172" y="360" width="392" height="32" rx="6" fill="#fff" stroke="#3b4cc0" stroke-width="1"/>
+  <text class="f1-b f1-ink" x="184" y="380"><tspan font-weight="700">Plan</tspan>   cards with a status, a wave, two scores and a verdict</text>
+
+  <path class="f1-ar" d="M144 150H160" marker-end="url(#f1-a)"/>
+  <path class="f1-ar" d="M144 314H160" marker-end="url(#f1-a)"/>
+
+  <rect class="f1-box" x="590" y="238" width="122" height="78" rx="8"/>
+  <text class="f1-h f1-ink" x="601" y="260">Operator</text>
+  <text class="f1-b f1-mut" x="601" y="278">applies or skips;</text>
+  <text class="f1-b f1-mut" x="601" y="293">nothing is</text>
+  <text class="f1-b f1-mut" x="601" y="308">auto-applied</text>
+  <rect class="f1-ld" x="590" y="338" width="122" height="96" rx="8"/>
+  <circle cx="608" cy="358" r="10.5" fill="#b45309"/><text class="f1-n" x="608" y="362" text-anchor="middle">7</text>
+  <text class="f1-h f1-ink" x="624" y="362.5">Ledger</text>
+  <text class="f1-b f1-mut" x="601" y="384">ROAS before and</text>
+  <text class="f1-b f1-mut" x="601" y="399">after at 7, 14 and</text>
+  <text class="f1-b f1-mut" x="601" y="414">30 days; a label</text>
+  <text class="f1-b f1-mut" x="601" y="429">per action</text>
+  <path class="f1-ar" d="M574 276H588" marker-end="url(#f1-a)"/>
+  <path class="f1-ar" d="M651 316V336" marker-end="url(#f1-a)"/>
+
+  <path class="f1-fb" d="M651 434V456H368V406" marker-end="url(#f1-b)"/>
+  <text class="f1-b" fill="#8a4107" x="162" y="478">Feedback: realised win rates set confidence; the applied history arms locks and cooldowns.</text>
+</svg><figcaption><b>Figure 1.</b> The end-to-end flow: feeds, the two entry points, and the seven steps.</figcaption></figure>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Question</th>
+<th>Where it lives</th>
+<th>Entry point</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Which of conversion, price or CPM moved?</td>
+<td><code>identity</code>, <code>decompose</code></td>
+<td><code>diagnose()</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Which lever moved it?</td>
+<td><code>attribution</code>, <code>recommend</code></td>
+<td><code>diagnose()</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Is a budget binding, a keyword bleeding, a CPM inflating?</td>
+<td><code>budget</code>, <code>cpm</code>, <code>keywords</code>, <code>geo</code></td>
+<td><code>diagnose()</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>What actions do the rules propose?</td>
+<td><code>actions.families</code></td>
+<td><code>plan()</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Which proposals survive, in what order?</td>
+<td><code>actions.pipeline</code></td>
+<td><code>plan()</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Ship it, wait, or hand it to a person?</td>
+<td><code>verdict</code></td>
+<td><code>plan()</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Did the action do what the card predicted?</td>
+<td><code>store.ledger</code>, <code>outcomes</code></td>
+<td>you call it daily</td>
+</tr>
+</tbody>
+</table></div>
+<p>An <strong>entity</strong> is the thing that holds a budget: a campaign, an ad group or a line item. A
+<strong>targeting unit</strong> is what you bid on inside it: a keyword, an audience, a category. Words such as
+"campaign" and "keyword" in card titles and finding names mean "entity" and "targeting unit".</p>
+</section><section class="plain"><h2 id="2-the-data-you-feed-in" class="brk"><span class="num">2</span>The data you feed in</h2>
+<h3 id="the-row-contract">The row contract</h3>
+<p>The only required feed is delivery: one <code>PerfRow</code> per entity and day, optionally split by
+targeting unit, geo and product.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Meaning</th>
+<th>Without it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>date</code></td>
+<td>yes</td>
+<td>a <code>datetime.date</code> (not a string)</td>
+<td>the engine raises a <code>TypeError</code></td>
+</tr>
+<tr>
+<td><code>entity_id</code></td>
+<td>yes</td>
+<td>the budget-holding entity</td>
+<td></td>
+</tr>
+<tr>
+<td><code>spend</code></td>
+<td>yes</td>
+<td>money spent, your currency</td>
+<td></td>
+</tr>
+<tr>
+<td><code>impressions</code></td>
+<td>yes</td>
+<td>impressions served</td>
+<td></td>
+</tr>
+<tr>
+<td><code>sales</code></td>
+<td>for ROAS</td>
+<td>directly attributed revenue; defaults to 0</td>
+<td>the entity cannot be judged on ROAS</td>
+</tr>
+<tr>
+<td><code>units</code></td>
+<td>for ROAS</td>
+<td>attributed units or orders; defaults to 0</td>
+<td>the identity cannot split conversion from price</td>
+</tr>
+<tr>
+<td><code>targeting_unit</code>, <code>targeting_type</code></td>
+<td>no</td>
+<td>the keyword or audience, and its kind</td>
+<td>keyword blocks are skipped, with a note</td>
+</tr>
+<tr>
+<td><code>geo</code></td>
+<td>no</td>
+<td>auction or reporting region</td>
+<td>no geo cards and no head-term pressure card (it needs a CPM rise in at least 3 geos)</td>
+</tr>
+<tr>
+<td><code>product_id</code></td>
+<td>no</td>
+<td>the advertised product</td>
+<td>availability cannot be tied to an entity, unless <code>Entity.product_ids</code> is set</td>
+</tr>
+<tr>
+<td><code>bid</code></td>
+<td>no</td>
+<td>bid in force that day</td>
+<td>the first read says "bid unknown"; the bid lever is not modelled</td>
+</tr>
+<tr>
+<td><code>position</code></td>
+<td>no</td>
+<td>ad slot or rank</td>
+<td>position rules abstain</td>
+</tr>
+<tr>
+<td><code>indirect_sales</code></td>
+<td>no</td>
+<td>halo or view-through sales</td>
+<td>entity ROAS is direct only</td>
+</tr>
+<tr>
+<td><code>new_users</code></td>
+<td>no</td>
+<td>new-to-brand customers</td>
+<td>loss-making keywords are never spared as cheap acquisition</td>
+</tr>
+<tr>
+<td><code>ad_type</code>, <code>status</code>, <code>segment</code>, <code>entity_name</code></td>
+<td>no</td>
+<td>labels</td>
+<td>unknown ad types get the fully levered default; unknown statuses read as live</td>
+</tr>
+<tr>
+<td><code>clicks</code></td>
+<td>no</td>
+<td>clicks, where the platform has them</td>
+<td>nothing: no rule needs clicks</td>
+</tr>
+</tbody>
+</table></div>
+<p>Additive fields (<code>spend</code>, <code>impressions</code>, <code>sales</code>, <code>units</code>, <code>clicks</code>, <code>indirect_sales</code>, <code>new_users</code>)
+are summed across rows. <code>bid</code> and <code>position</code> are rates and are only ever combined as weighted
+means. Hourly exports can be passed as they are: rows that repeat a date are summed.</p>
+<p>One row of the example, with empty fields left out:</p>
+<pre class="out"><code>PerfRow(date=2026-01-01, entity_id='cmp-brand', spend=896.13, impressions=7282.0,
+        sales=8640.0, units=36.0, advertiser_id='adv-001', targeting_unit='ownbrand bar',
+        targeting_type='keyword', geo='geo-north', product_id='sku-a1', bid=129.54,
+        position=1.48, ad_type='keyword_listing', status='ACTIVE', indirect_sales=432.0,
+        new_users=4.0, entity_name='Brand defence', segment='snack-bars')
+</code></pre>
+<h3 id="the-optional-feeds">The optional feeds</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Feed</th>
+<th>Record</th>
+<th>Rows in the example</th>
+<th>Unlocks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>delivery</td>
+<td><code>PerfRow</code></td>
+<td>7,000</td>
+<td>identity, shift-share, keyword cut and leak scans, collisions, CPM views</td>
+</tr>
+<tr>
+<td>entities</td>
+<td><code>Entity</code></td>
+<td>9</td>
+<td>status, ad type, daily cap, segment (derived from the rows when absent)</td>
+</tr>
+<tr>
+<td>targeting units</td>
+<td><code>TargetingUnit</code></td>
+<td>15</td>
+<td>roles (own brand, competitor, generic), search volume</td>
+</tr>
+<tr>
+<td>products</td>
+<td><code>Product</code></td>
+<td>9</td>
+<td>own versus rival products, brand</td>
+</tr>
+<tr>
+<td>share of voice</td>
+<td><code>MarketRow</code></td>
+<td>5,040</td>
+<td>rival pressure, the share-of-voice levers, keyword additions</td>
+</tr>
+<tr>
+<td>market sell-out</td>
+<td><code>OfftakeRow</code></td>
+<td>3,150</td>
+<td>market share, the market root-cause read, the tide in outcome scoring</td>
+</tr>
+<tr>
+<td>shelf</td>
+<td><code>ShelfRow</code></td>
+<td>4,050</td>
+<td>availability and price levers, the availability drill, the supply gate</td>
+</tr>
+<tr>
+<td>budget pacing</td>
+<td><code>BudgetDayRow</code></td>
+<td>680</td>
+<td>budget-bound tests, the saturation curve, raise sizing</td>
+</tr>
+<tr>
+<td>change log</td>
+<td><code>ChangeEvent</code></td>
+<td>2</td>
+<td>"was the change actually made" detection</td>
+</tr>
+</tbody>
+</table></div>
+<p>A field typed <code>X | None</code> is optional everywhere. <code>None</code> means "the platform does not report this",
+and every consumer skips the dependent gate or says "not assessed". It is never read as zero.</p>
+<h3 id="the-platform-profile">The platform profile</h3>
+<p>Everything that differs between platforms is declared once in a <code>PlatformProfile</code>: the ad types and
+what each can do, the status vocabulary, what <code>position</code> means, the geo grain, the auction type,
+the trading-day hours and a money scale. Section 10 covers it.</p>
+<h3 id="running-it">Running it</h3>
+<pre><code class="language-python">from cpm_lineage import SyntheticAdapter, diagnose, plan, render_report
+
+data = SyntheticAdapter().dataset
+print(render_report(diagnose(data), plan(data)))
+</code></pre>
+<p>The report from <code>examples/quickstart.py</code> has five blocks. The rest of this guide takes them apart.</p>
+<pre class="out"><code>DIAGNOSIS  2026-03-02 .. 2026-03-31  vs  2026-01-31 .. 2026-03-01
+  ROAS 3.04 -&gt; 2.79 (-8.2%)  [direct sales]
+    icr1k       1.242 -&gt;      1.196  log-points -0.038  share +44%
+    asp       258.416 -&gt;    266.829  log-points +0.032  share -38%
+    cpm       105.440 -&gt;    114.184  log-points -0.080  share +93%
+  first read: CPM rose and the bid was raised: self-inflicted
+  ad-type shift-share: primary RATE, mix +0.035, rate -0.284
+    keyword_listing    mix +0.062  rate -0.234
+    recommendation     mix -0.027  rate -0.049
+    featured_listing   mix -0.000  rate +0.000
+  largest drags on account ROAS: cmp-conquest (70% cum.), cmp-overlap (100% cum.)
+
+FINDINGS (5)
+  [cpm_rise] CPM on 'protein bar' rose 62% (149 -&gt; 242): rival pressure
+  [availability_drop] availability of sku-a2 in geo-south fell 0.95 -&gt; 0.58
+  [budget_bound_winner] cmp-winner is budget-bound at ROAS 6.30: top up daily budget
+      (range 8,255-12,700 per day)
+  [bleeding_keyword] 'rivalb bar' (competitor) returns ROAS 0.34 on 142,904 spend: cut
+  [own_collision] 2 own campaigns bid 'energy bar' in 4 auction(s); keep it on cmp-generic,
+      130,292 sits on the weaker one(s)
+
+PLAN  04d1f1d752c5  profile classic  3 actionable of 3 cards
+  verdicts: ACT 3
+  holdout (untouched this period): cmp-brand, cmp-conquest, cmp-reach
+  w3 ACT       pending   conf 79  Increase Budget +25%  [cmp-winner]
+       why: ROAS 6.30x on 190,500 spend and the daily budget runs out early (utilisation 100%)
+  w2 ACT       pending   conf 73  Hold Bid Under Pressure  [cmp-generic: protein bar]
+       why: CPM on 'protein bar' rose more than 10% in 4 geos; ROAS 2.67x still clears 1.00x
+  w1 ACT       pending   conf 73  Resolve Keyword Collision  [cmp-overlap: energy bar]
+       why: 2 own campaigns bid 'energy bar' in geo-north; 130,292 sits on the weaker ones
+</code></pre>
+<p>(Two long lines are wrapped here. The <code>ENTITIES</code> and <code>MARKET</code> blocks are left out for space.)</p>
+</section><section class="dg"><h2 id="3-step-1-the-identity-tells-you-which-channel-moved" class="brk step dg"><span class="badge">Step<b>1</b></span><span>The identity tells you which channel moved</span></h2>
+<p class="q"><strong>Question</strong>ROAS moved between two windows. Was it conversion, price, or the cost of an
+impression?</p>
+<p class="lead"><strong>Formula.</strong> On a platform billed per thousand impressions the impression count cancels, so ROAS
+factors into three channels with no remainder:</p>
+<pre class="formula"><code>ROAS = sales / spend = ICR1k x ASP / CPM
+
+ICR1k = 1000 x units / impressions     conversions per thousand impressions
+ASP   = sales / units                  average selling price
+CPM   = 1000 x spend / impressions     cost per thousand impressions
+
+d ln ROAS = d ln ICR + d ln ASP - d ln CPM          (exact, residual 0)
+</code></pre>
+<p><strong>ICR</strong> (impression conversion rate) stands in for the click funnel, because many CPM platforms
+report no clicks. Where clicks exist, <code>ICR = CTR x CVR</code> and nothing else changes. A <strong>log-point</strong>
+is one unit of the natural-log change; for small moves 0.01 log-points is about 1%.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 300" role="img" aria-labelledby="f2-title f2-desc" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="f2-title">The identity on the worked example</title>
+  <desc id="f2-desc">Signed log-point contributions of conversion, price and CPM to the ROAS move. Account: conversion -0.038, price +0.032, CPM -0.080, total -0.085. Entity cmp-generic: conversion +0.023, price -0.006, CPM -0.236, total -0.219.</desc>
+  <style>
+    .f2-ink{fill:#17202b}.f2-mut{fill:#5b6775}.f2-h{font-size:13px;font-weight:700}.f2-l{font-size:12px}
+    .f2-v{font-size:11.5px;font-variant-numeric:tabular-nums}.f2-xs{font-size:10.5px}
+    .f2-neg{fill:#c2410c}.f2-pos{fill:#0f766e}.f2-tot{fill:#17202b}
+    .f2-ax{stroke:#17202b;stroke-width:1.2}.f2-grid{stroke:#dfe4ea;stroke-width:1}
+    .f2-panel{fill:#fff;stroke:#c9d1da;stroke-width:1.1}
+  </style>
+  <rect class="f2-panel" x="5" y="6" width="350" height="252" rx="10"/>
+  <text class="f2-h f2-ink" x="17" y="30">Account</text>
+  <text class="f2-l f2-mut" x="79" y="30">ROAS 3.04 to 2.79</text>
+  <line class="f2-grid" x1="175.0" y1="48" x2="175.0" y2="228"/><line class="f2-grid" x1="80.0" y1="48" x2="80.0" y2="228"/>
+  <line class="f2-ax" x1="270" y1="48" x2="270" y2="228"/>
+  <line x1="17" y1="183" x2="343" y2="183" stroke="#c9d1da"/>
+  <text class="f2-xs f2-mut" x="270" y="244" text-anchor="middle">0</text>
+  <text class="f2-xs f2-mut" x="175.0" y="244" text-anchor="middle">-0.10</text>
+  <text class="f2-xs f2-mut" x="80.0" y="244" text-anchor="middle">-0.20</text>
+  <text class="f2-l f2-ink" x="17" y="78">ICR</text>
+  <text class="f2-xs f2-mut" x="17" y="91">conversion</text>
+  <rect class="f2-neg" x="234.3" y="62" width="35.7" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="228.3" y="78.5" text-anchor="end">-0.038</text>
+  <text class="f2-l f2-ink" x="17" y="120">ASP</text>
+  <text class="f2-xs f2-mut" x="17" y="133">price</text>
+  <rect class="f2-pos" x="270.0" y="104" width="30.4" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="306.4" y="120.5">+0.032</text>
+  <text class="f2-l f2-ink" x="17" y="162">CPM</text>
+  <text class="f2-xs f2-mut" x="17" y="175">cost, sign flipped</text>
+  <rect class="f2-neg" x="194.3" y="146" width="75.7" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="188.3" y="162.5" text-anchor="end">-0.080</text>
+  <text class="f2-l f2-ink" font-weight='700' x="17" y="212">ROAS</text>
+  <text class="f2-xs f2-mut" x="17" y="225">the sum, exact</text>
+  <rect class="f2-tot" x="189.0" y="196" width="81.0" height="24" rx="3"/>
+  <text class="f2-v f2-ink" font-weight="700" x="183.0" y="212.5" text-anchor="end">-0.085</text>
+  <rect class="f2-panel" x="365" y="6" width="350" height="252" rx="10"/>
+  <text class="f2-h f2-ink" x="377" y="30">cmp-generic</text>
+  <text class="f2-l f2-mut" x="465" y="30">holds the planted CPM spike</text>
+  <line class="f2-grid" x1="545.0" y1="48" x2="545.0" y2="228"/><line class="f2-grid" x1="450.0" y1="48" x2="450.0" y2="228"/>
+  <line class="f2-ax" x1="640" y1="48" x2="640" y2="228"/>
+  <line x1="377" y1="183" x2="703" y2="183" stroke="#c9d1da"/>
+  <text class="f2-xs f2-mut" x="640" y="244" text-anchor="middle">0</text>
+  <text class="f2-xs f2-mut" x="545.0" y="244" text-anchor="middle">-0.10</text>
+  <text class="f2-xs f2-mut" x="450.0" y="244" text-anchor="middle">-0.20</text>
+  <text class="f2-l f2-ink" x="377" y="78">ICR</text>
+  <rect class="f2-pos" x="640.0" y="62" width="21.9" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="667.9" y="78.5">+0.023</text>
+  <text class="f2-l f2-ink" x="377" y="120">ASP</text>
+  <rect class="f2-neg" x="634.1" y="104" width="5.9" height="24" rx="3"/>
+  <text class="f2-v f2-ink" x="628.1" y="120.5" text-anchor="end">-0.006</text>
+  <text class="f2-l f2-ink" x="377" y="162">CPM</text>
+  <rect class="f2-neg" x="416.2" y="146" width="223.8" height="24" rx="3"/>
+  <text class="f2-v" fill="#fff" x="424.2" y="162.5">-0.236</text>
+  <text class="f2-l f2-ink" font-weight='700' x="377" y="212">ROAS</text>
+  <rect class="f2-tot" x="432.1" y="196" width="207.9" height="24" rx="3"/>
+  <text class="f2-v" fill="#fff" font-weight="700" x="440.1" y="212.5">-0.219</text>
+  <text class="f2-xs f2-mut" x="5" y="278">Signed log-point contributions to d ln ROAS, 2026-03-02..03-31 against 2026-01-31..03-01. Both panels share one scale. A CPM rise</text>
+  <text class="f2-xs f2-mut" x="5" y="293">is drawn as a negative bar because CPM enters the identity as a divisor. Source: SyntheticAdapter(), seed 7.</text>
+</svg><figcaption><b>Figure 2.</b> The identity on the worked example: three signed channel contributions add up to the ROAS move.</figcaption></figure>
+<p class="lead"><strong>What the output looks like.</strong> <code>Diagnosis.layer1</code> for the account, and <code>EntityDiagnosis.layer1</code>
+for each entity:</p>
+<pre class="out"><code>account ROAS 3.0433 -&gt; 2.7945   ln ratio -0.0853
+  icr1k      1.242 -&gt;     1.196   signed log-points -0.0376   share of move +44.1%
+  asp      258.416 -&gt;   266.829   signed log-points +0.0320   share of move -37.6%
+  cpm      105.440 -&gt;   114.184   signed log-points -0.0797   share of move +93.4%
+  sum of log-points -0.0853   exact=True
+first read: code=self_inflicted_bid  bid change +18.8%
+cmp-generic: ln ratio -0.2188 = icr1k +0.0231  asp -0.0062  cpm -0.2356
+</code></pre>
+<p>Read it like this. Account ROAS fell 8.2%. Conversion cost 3.8 log-points, a higher selling price
+gave back 3.2, and CPM cost 8.0. The contributions are signed so that a CPM rise shows as a
+negative number, and they sum to the ROAS move exactly. "Share of move" divides each contribution
+by the total, so a channel that pushed against the move has a negative share.</p>
+<p class="lead"><strong>The first read.</strong> <code>layer1_verdict</code> turns the table into one of six codes, with no model:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Condition (on a ROAS drop)</th>
+<th>Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPM is the worst channel and the bid moved less than 7%</td>
+<td><code>auction_pressure</code></td>
+</tr>
+<tr>
+<td>CPM is the worst channel and the bid rose 7% or more</td>
+<td><code>self_inflicted_bid</code></td>
+</tr>
+<tr>
+<td>CPM is the worst channel and the bid fell 7% or more</td>
+<td><code>cpm_rose_bid_cut</code></td>
+</tr>
+<tr>
+<td>CPM is the worst channel and there is no bid data</td>
+<td><code>cpm_rose_bid_unknown</code></td>
+</tr>
+<tr>
+<td>ICR is the worst channel</td>
+<td><code>conversion_fell</code></td>
+</tr>
+<tr>
+<td>otherwise</td>
+<td><code>asp_fell</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>In the example the spend-weighted bid rose 18.8%, so the first read is <code>self_inflicted_bid</code>. Keep
+that in mind for step 3, where the keyword-level classifier, which also sees share of voice, names
+a rival as the cause. The first read is cheap and sees only delivery rows. Treat it as a pointer.</p>
+<p class="lead"><strong>Also in this step.</strong> <code>ad_type_shift_share</code> splits the account move into mix (spend shifted
+between ad types) and rate (ROAS changed inside a type) with the exact midpoint formula
+<code>mix_i = (w_c - w_p)(r_c + r_p)/2</code>, <code>rate_i = (w_c + w_p)/2 x (r_c - r_p)</code>. <code>pareto_drag_rows</code>
+ranks the entities that pull blended ROAS down. Here the move is rate-led (-0.284 against +0.035),
+and two entities carry all of the drag.</p>
+<p><strong>Thresholds that matter</strong> (<code>IdentityConfig</code>, <code>OrchestrationConfig</code>):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OrchestrationConfig.window_days</code></td>
+<td>30</td>
+<td>the comparison is the last 30 days against the 30 before</td>
+</tr>
+<tr>
+<td><code>IdentityConfig.verdict_bid_flat_pct</code></td>
+<td>7.0</td>
+<td>a bid change under 7% counts as flat</td>
+</tr>
+<tr>
+<td><code>IdentityConfig.verdict_min_spend</code></td>
+<td>500</td>
+<td>no first read below this window spend (reference money)</td>
+</tr>
+<tr>
+<td><code>IdentityConfig.min_dln</code></td>
+<td>1e-4</td>
+<td>below this move the share denominator falls back</td>
+</tr>
+</tbody>
+</table></div>
+<p class="lead"><strong>How to change them.</strong> The window: <code>diagnose(data, options=OrchestrationConfig(window_days=14))</code>,
+or pass <code>windows=</code> built with <code>trailing_windows</code>, <code>resolve_window</code> or a <code>WindowPair</code> of your own.
+The identity thresholds are arguments of the functions themselves:
+<code>layer1_verdict(result, cfg=IdentityConfig(verdict_bid_flat_pct=10))</code>.</p>
+<p class="lead"><strong>Guard.</strong> When the prior window holds no delivery, the report says "no comparison window" instead
+of decomposing a move from zero. When any channel is zero in either window the result is marked
+<code>exact=False</code> and no first read is given.</p>
+</section><section class="dg"><h2 id="4-step-2-attribution-names-the-lever" class="step dg"><span class="badge">Step<b>2</b></span><span>Attribution names the lever</span></h2>
+<p class="q"><strong>Question</strong>The identity said which channel moved. Which thing that changed explains it: the
+bid, the position, share of voice, availability, price?</p>
+<p class="lead"><strong>Method in one line.</strong> For each entity, regress the log of each channel on daily lever values,
+then credit each lever with <code>coefficient x (mean in the current window - mean in the prior
+window)</code>:</p>
+<pre class="formula"><code>contribution[lever] = sum over channels of  sign(channel) x w[channel][lever] x (z_current - z_prior)
+</code></pre>
+<p>A <strong>lever</strong> is one entity-by-day number. There are eleven. Eight are things the advertiser
+controls (tier 1): <code>bid</code>, <code>position</code>, <code>own_paid_sov</code>, <code>own_organic_sov</code>, <code>own_availability</code>,
+<code>competitor_share</code> (spend share on competitor terms), <code>own_discount</code>, <code>price_gap</code>. Three are
+outside conditions (tier 2) kept in the model as controls and never turned into an action:
+<code>log_category_impressions</code>, <code>comp_availability</code>, <code>comp_discount</code>.</p>
+<p>Two models are fitted, and they have to agree:</p>
+<ul>
+<li>The <strong>level model</strong> is a ridge regression with sign constraints (a higher bid cannot lower CPM),
+  shrunk toward account-wide elasticities fitted over all entities.</li>
+<li>The <strong>day-to-day model</strong> is a second ridge on first differences. It is right only when daily
+  changes in a lever line up with daily changes in the channel, so it is not fooled by slow trends.</li>
+</ul>
+<p>The <strong>jury</strong> compares them lever by lever. Both material (at least 5% of the move) with the same
+sign is <code>confirm</code>; opposite signs is <code>contest</code>; only the level model material is <code>solo</code>.</p>
+<p class="lead"><strong>The verdict.</strong> One label for the whole attribution, first match wins:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>too few model days, or fewer than four live levers</td>
+<td><code>thin-data</code></td>
+</tr>
+<tr>
+<td>ROAS barely moved while levers offset each other, or the levers explain under 20% of the move</td>
+<td><code>unexplained</code></td>
+</tr>
+<tr>
+<td>the two models disagree on the direction of the largest lever</td>
+<td><code>unexplained</code></td>
+</tr>
+<tr>
+<td>the day-to-day model predicts clearly worse than "tomorrow equals today" (skill below -0.25)</td>
+<td><code>unexplained</code></td>
+</tr>
+<tr>
+<td>the largest lever is <code>confirm</code> and day-to-day skill is at least 0</td>
+<td><code>confirmed</code></td>
+</tr>
+<tr>
+<td>otherwise</td>
+<td><code>directional</code></td>
+</tr>
+</tbody>
+</table></div>
+<p class="lead"><strong>What the output looks like.</strong> <code>EntityDiagnosis.attribution</code> for <code>cmp-generic</code>:</p>
+<pre class="out"><code>verdict=confirmed  (both models agree on the largest lever and day-to-day skill is non-negative)
+confidence={'level': 'High', 'days': 60, 'imputed': 0.0, 'skill': 0.353}
+explained: net 99.9%  gross 102.8%  residual 0.1%  basis=move
+lever                       share  level model  day-to-day  jury     from -&gt; to
+bid                           86%      -0.1885     -0.2046  confirm  137.336 -&gt; 194.957
+own_paid_sov                  13%      -0.0284     -0.0484  confirm  0.350 -&gt; 0.303
+log_category_impressions       2%      -0.0044     -0.0052  None     13.981 -&gt; 14.049
+own_organic_sov               -1%       0.0018      0.0045  None     0.301 -&gt; 0.300
+own_availability               0%      -0.0005      0.0014  None     0.950 -&gt; 0.947
+position                       0%       0.0001     -0.0003  None     3.502 -&gt; 3.500
+not modelled: competitor_share, own_discount (folded), comp_discount (folded)
+sizing of the top lever: bid down 10% -&gt; ROAS +0.19 (estimator lever-elasticity)
+</code></pre>
+<p>The entity's ROAS fell 0.219 log-points. The bid, up from 137 to 195, accounts for 86% of that and
+both models agree. Paid share of voice slipping accounts for 13%. The two discount levers were
+folded into <code>price_gap</code> by the collinearity guard, and <code>competitor_share</code> had no coverage.</p>
+<p><code>recommend()</code> then turns the attribution into at most three actions for the entity. For
+<code>cmp-generic</code> it returns "Cap bids on protein bar, healthy snack", "Raise bids on energy bar" and
+an availability action whose target list is empty in this run.</p>
+<p><strong>Thresholds that matter</strong> (<code>AttributionConfig</code>, <code>TierConfig</code>):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TierConfig.mature_min_days</code></td>
+<td>21</td>
+<td>fewer model days: <code>thin-data</code>, no entity fit</td>
+</tr>
+<tr>
+<td><code>TierConfig.full_min_days</code></td>
+<td>35</td>
+<td>from here the pooling strength is chosen by cross-validation</td>
+</tr>
+<tr>
+<td><code>thin_min_levers</code></td>
+<td>4</td>
+<td>fewer live levers: <code>thin-data</code></td>
+</tr>
+<tr>
+<td><code>coverage_min</code></td>
+<td>0.20</td>
+<td>a lever is live only with real values on more than this share of days</td>
+</tr>
+<tr>
+<td><code>jury_materiality</code></td>
+<td>0.05</td>
+<td>a model votes on a lever only at 5% of the move</td>
+</tr>
+<tr>
+<td><code>explained_floor_pct</code></td>
+<td>20</td>
+<td>below this explained share the verdict is <code>unexplained</code></td>
+</tr>
+<tr>
+<td><code>skill_floor</code></td>
+<td>-0.25</td>
+<td>below this day-to-day skill the verdict is <code>unexplained</code></td>
+</tr>
+<tr>
+<td><code>confirmed_min_skill</code></td>
+<td>0.0</td>
+<td><code>confirmed</code> needs at least this skill</td>
+</tr>
+</tbody>
+</table></div>
+<p class="lead"><strong>How to change them.</strong> <code>diagnose()</code> passes <code>EngineConfig.tiers</code> and <code>EngineConfig.position</code>
+through, so <code>diagnose(data, config=EngineConfig(tiers=TierConfig(mature_min_days=28)))</code> works. The
+<code>AttributionConfig</code> fields are not threaded through <code>diagnose()</code>. To change them, call the
+function yourself: <code>attribution.attribute(panel, windows, cfg=AttributionConfig(...))</code>.</p>
+<p class="lead"><strong>What it needs.</strong> Measured on the example: with only the delivery feed, or with the delivery and
+budget feeds but neither the share-of-voice nor the shelf feed, every entity returns <code>thin-data</code>,
+because fewer than four levers have coverage. With either of those two feeds the attribution runs.</p>
+<blockquote>
+<p class="lead"><strong>Limit.</strong> The attribution is observational. "Confirmed" means two regressions agree on the
+largest lever and the day-to-day one is no worse than a naive forecast. It is not a causal estimate, and a
+lever that is not in the model (creative, a competitor's stock-out you do not observe) cannot be
+named.</p>
+</blockquote>
+</section><section class="dg"><h2 id="5-step-3-budget-keyword-and-cpm-checks" class="brk step dg"><span class="badge">Step<b>3</b></span><span>Budget, keyword and CPM checks</span></h2>
+<p>These checks do not depend on the attribution model. Each produces typed <code>Finding</code> rows, and each
+finding names the module whose numbers it carries (<code>Finding.source</code>).</p>
+<h3 id="budget-is-the-cap-binding-and-is-a-raise-worth-it">Budget: is the cap binding, and is a raise worth it?</h3>
+<p class="q"><strong>Question</strong>Does this entity run out of daily budget, and would the next unit of budget return
+more than it costs?</p>
+<p class="lead"><strong>Formulas.</strong></p>
+<pre class="formula"><code>capped day      spend &gt;= 0.9 x daily budget
+capped entity   at least 7 spending days, and capped on &gt;= 60% of them
+curve           sales = b x ln(1 + spend / theta)        fitted per entity on about 90 days
+marginal ROAS   b / (theta + spend)                      what the next unit of spend returns
+</code></pre>
+<p><code>probe_budget</code> collects the facts and <code>raise_verdict</code> turns them into one verb. First match wins:
+ended status, unknown ROAS (never raise blind), a day-parted schedule, blocked availability, 40%
+or more of spend below breakeven, a flat or past-ceiling curve, a mostly organic entity, and only
+then a raise. That ladder applies at or above the scale bar (2 times breakeven by default).
+Between breakeven and the scale bar the verb is "hold and monitor"; below breakeven it is
+"tighten". A raise needs a marginal ROAS of at least 1.0 at the cap. Between 0.9 and 1.0 the
+verdict is a hold.</p>
+<p class="lead"><strong>What the output looks like.</strong></p>
+<pre class="out"><code>budget probe cmp-winner: cap 6,350/day, avg spend 6,350, capped 30 of 30 days,
+    exhausts at hour 11.3
+  marginal ROAS at the cap 2.80 from the account-pooled curve (r2 0.34);
+    own curve not usable: daily spend barely varies (cv 0.00002)
+  raise verdict: code=top_up  verb='Top up daily budget'  range 8,255-12,700/day
+    estimator=saturation_curve
+</code></pre>
+<p>This is worth reading closely, because it shows the curve's weak point. An entity that hits its
+cap every day spends the same amount every day, so its own curve cannot be fitted (spend that never
+varies reveals no response). The probe falls back to a curve pooled over every entity's days, which
+may lend a marginal ROAS but never a ceiling. The recommended range is then the plain multiples
+1.3x to 2.0x of the cap, with 1.5x as the recommended point.</p>
+<p><strong>Thresholds that matter</strong> (<code>BudgetConfig</code>, <code>BudgetBoundPolicy</code>):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cap_hit_fraction</code></td>
+<td>0.9</td>
+<td>a day is capped at 90% of the cap</td>
+</tr>
+<tr>
+<td><code>capped_day_share</code></td>
+<td>0.6</td>
+<td>the cap binds when capped on 60% of active days</td>
+</tr>
+<tr>
+<td><code>sat_min_cv</code></td>
+<td>0.15</td>
+<td>spend variation an own curve needs</td>
+</tr>
+<tr>
+<td><code>sat_decision_r2</code></td>
+<td>0.3</td>
+<td>only fits at or above this may block a raise or size a ceiling</td>
+</tr>
+<tr>
+<td><code>marginal_ceiling</code></td>
+<td>1.0</td>
+<td>a raise needs this marginal ROAS at the cap</td>
+</tr>
+<tr>
+<td><code>marginal_block</code></td>
+<td>0.9</td>
+<td>below this the wording is "blocked", not "hold"</td>
+</tr>
+<tr>
+<td><code>range_low_mult</code> / <code>range_rec_mult</code> / <code>range_high_mult</code></td>
+<td>1.3 / 1.5 / 2.0</td>
+<td>the recommended range</td>
+</tr>
+<tr>
+<td><code>BudgetBoundPolicy.early_exhaust_minutes</code></td>
+<td>720</td>
+<td>"runs out early" means before this minute of the day</td>
+</tr>
+</tbody>
+</table></div>
+<p class="lead"><strong>How to change them.</strong> The budget-bound policy and trading day ride on <code>EngineConfig</code>:
+<code>EngineConfig(budget_bound=BudgetBoundPolicy(early_exhaust_minutes=900))</code>. <code>BudgetConfig</code> is not
+threaded through <code>diagnose()</code>; call <code>budget.probe_budget(..., cfg=BudgetConfig(...))</code> directly.</p>
+<h3 id="cpm-why-did-the-price-of-an-impression-rise">CPM: why did the price of an impression rise?</h3>
+<p class="q"><strong>Question</strong>A keyword's CPM rose. Did we buy a better spot, did a rival push in, or did the slot
+get dearer?</p>
+<p class="lead"><strong>Rule.</strong> <code>classify_cpm_move</code> explains only rises above 5%, for the top four keywords by spend.
+First match wins:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Evidence</th>
+<th>Kind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>position improved by 0.3 slots or more, or own ad share rose 5 points or more</td>
+<td>bought position</td>
+</tr>
+<tr>
+<td>a rival's ad share rose 3 points or more</td>
+<td>rival pressure</td>
+</tr>
+<tr>
+<td>position worsened by 0.3 slots or more</td>
+<td>worse spot</td>
+</tr>
+<tr>
+<td>none of these</td>
+<td>auction price</td>
+</tr>
+</tbody>
+</table></div>
+<p class="lead"><strong>Output.</strong></p>
+<pre class="out"><code>CPM move 'protein bar': 149.2 -&gt; 241.5 (+62%)  kind=rival pressure
+    position delta -0.05  own SOV delta -0.12  rival rival-b gain +0.23
+</code></pre>
+<p>Position did not move, own share of voice fell 12 points and <code>rival-b</code> gained 23 points, so the
+kind is rival pressure. This is the planted event: the generator raised the bid and CPM together on
+this keyword while a rival's ad impressions rose 2.5 times. The account-level first read in step 1
+called the same move "self-inflicted", because the bid did rise and it cannot see share of voice.
+Without a <code>MarketRow</code> feed the classifier has no rival evidence and would say "auction price".</p>
+<p><strong>Thresholds</strong> (<code>CpmConfig</code>): <code>explain_min_rise</code> 0.05, <code>explain_position_step</code> 0.3,
+<code>explain_sov_gain</code> 0.05, <code>explain_rival_gain</code> 0.03, <code>top_n</code> 4. Change them with
+<code>diagnose(data, cpm_cfg=CpmConfig(top_n=10))</code>.</p>
+<h3 id="keywords-what-is-losing-money">Keywords: what is losing money?</h3>
+<p class="lead"><strong>Rule.</strong> <code>cut_recs</code> flags a keyword when its window spend is above
+<code>max(8,000 reference money, 3% of scope spend)</code> and its ROAS is below breakeven, unless it buys new
+customers more cheaply than the median of its role.</p>
+<pre class="out"><code>keyword cut: 'rivalb bar' role=competitor spend 142,904 ROAS 0.34 verdict=cut
+    (ROAS 0.34 is below 1.00 on material spend (142904 &gt; floor 51215))
+</code></pre>
+<p><code>keyword_leaks</code> runs the same idea across every entity of a segment, so a keyword split over
+several campaigns is judged on its combined money. Thresholds are in <code>KeywordConfig</code>
+(<code>cut_floor_ref</code>, <code>cut_floor_share</code>, <code>cut_roas_be_mult</code>).</p>
+<h3 id="collisions-are-two-of-your-own-campaigns-bidding-against-each-other">Collisions: are two of your own campaigns bidding against each other?</h3>
+<p class="lead"><strong>Rule.</strong> <code>find_collisions</code> groups rows by keyword and geo, keeps groups with at least two live
+campaigns that each spent 10,000 reference money or more and advertise an overlapping product, and
+names the campaign with the best ROAS as the keeper. The rest of the spend is the waste.</p>
+<h3 id="availability-did-stock-fall">Availability: did stock fall?</h3>
+<p class="lead"><strong>Rule.</strong> <code>geo_drill</code> compares own availability per geo between the two windows. A fall of 0.05 or
+more becomes a finding, and a product whose own fall in that geo is 0.10 or more is named.</p>
+<pre class="out"><code>[availability_drop] availability of sku-a2 in geo-south fell 0.95 -&gt; 0.58
+</code></pre>
+<p>The planted drop is to 0.45 for the last 21 days. The finding reports 0.58 because it is the mean
+over the 30-day window. A window average always understates a recent step.</p>
+<p class="lead"><strong>Guards on findings.</strong> Keyword-cut and collision findings need 7 delivery days in the current
+window (<code>OrchestrationConfig.min_finding_days</code>). At most 10 findings per kind are reported.</p>
+</section><section class="pl"><h2 id="6-step-4-rule-families-propose-cards" class="step pl"><span class="badge">Step<b>4</b></span><span>Rule families propose cards</span></h2>
+<p class="q"><strong>Question</strong>Given the window aggregates, which actions do the rules propose?</p>
+<p>A <strong>rule family</strong> is a pure function from an <code>ActionContext</code> (window sums per entity, keyword,
+segment and geo) to a list of <code>ActionCard</code>. A <strong>card</strong> is one proposed action: a lever, a
+direction, a size, the trigger in words and numbers, and a stake. Families only propose. They do
+not veto, rank or cap; that is step 5.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Proposes</th>
+<th>Lever</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>efficiency</code></td>
+<td>budget cut on a loss-maker, budget raise on a capped winner, keyword pause</td>
+<td>budget, keyword</td>
+</tr>
+<tr>
+<td><code>growth</code></td>
+<td>ride a growing segment with its best campaign; add converting keywords</td>
+<td>budget, keyword</td>
+</tr>
+<tr>
+<td><code>defense</code></td>
+<td>detect new entrants; fund the brand campaign when a rival takes share</td>
+<td>budget, watch</td>
+</tr>
+<tr>
+<td><code>bid</code></td>
+<td>raise bids on unseen converters, lower them on visible bleeders, hold or yield a head term</td>
+<td>bid</td>
+</tr>
+<tr>
+<td><code>experiment</code></td>
+<td>a day-part test where the answer is uncertain</td>
+<td>experiment</td>
+</tr>
+<tr>
+<td><code>sov-gap</code></td>
+<td>close a gap between market share and ad share of voice</td>
+<td>budget, watch</td>
+</tr>
+<tr>
+<td><code>geo</code></td>
+<td>split out a weak geography; expand into an under-penetrated one</td>
+<td>geo</td>
+</tr>
+<tr>
+<td><code>collision</code></td>
+<td>resolve an own-versus-own keyword collision</td>
+<td>keyword</td>
+</tr>
+</tbody>
+</table></div>
+<p>There are three <strong>rule profiles</strong>. <code>classic</code> uses absolute ROAS bands relative to breakeven.
+<code>verdict</code> uses one relative threshold per keyword role and a ladder of bands. <code>marginal</code> is
+<code>classic</code> plus a later re-sizing of budget cards on finite-difference marginal ROAS.</p>
+<p><strong>Example formulas</strong> (the ones that fired below):</p>
+<pre class="formula"><code>classic raise    ROAS in [3 x be, 12 x be), spend &gt;= 10,000, budget-bound
+                 pct = clamp(round(100 x (target hour - exhaust hour) / exhaust hour x 0.9), 5, 50)
+keyword pause    conquest term, spend &gt;= 10,000, ROAS below min(role floor, be)
+head-term hold   biggest keyword, spend &gt;= 50,000, CPM up &gt; 10% in &gt;= 3 geos, ROAS above the floor
+collision        stake = 15% of the spend that sits on the weaker campaign
+</code></pre>
+<p><code>be</code> is the <strong>effective breakeven</strong>, <code>max(breakeven / max(ltv_mult, 0.1), 0.1)</code>. With the default
+economics it is 1.0, so "3 x be" reads as ROAS 3.</p>
+<p class="lead"><strong>What the output looks like.</strong> The raw candidates, before any gate:</p>
+<pre class="out"><code>efficiency-scale budget   Increase Budget +50% (6,350 -&gt; 9,525)   [cmp-winner]
+    why: ROAS 6.30x on 190,500 spend and the daily budget runs out early (utilisation 100%)
+    do:  raise 50%; hold if marginal ROAS decays below 2.00x          stake 476,249
+efficiency-cut   keyword  Pause / Negative Keywords               [cmp-conquest: rivalb bar]
+    why: 1 keyword(s) lose money: rivalb bar (0.34x)                  stake 93,944
+bid              bid      Hold Bid Under Pressure                 [cmp-generic: protein bar]
+    why: CPM on 'protein bar' rose more than 10% in 4 geos; ROAS 2.67x still clears 1.00x
+    do:  hold the bid; the term can afford the fight                  stake 45,427
+collision        keyword  Resolve Keyword Collision               [cmp-overlap: energy bar]
+    why: 2 own campaigns bid 'energy bar' in geo-north; 130,292 sits on the weaker ones
+    do:  keep it on cmp-generic; negative-match it elsewhere          stake 19,544
+</code></pre>
+<p><strong>Thresholds that matter</strong> (<code>ActionsConfig</code>, 123 fields; the ones behind these four cards):
+<code>scale_min_mult</code> 3.0, <code>scale_max_mult</code> 12.0, <code>scale_min_spend</code> 10,000, <code>scale_pct_max</code> 50,
+<code>pause_conquest_min_spend</code> 10,000, <code>head_min_spend</code> 50,000, <code>head_cpm_rise</code> 1.10, <code>head_min_geos</code> 3,
+<code>collision_min_spend</code> 10,000.</p>
+<p class="lead"><strong>How to change them.</strong></p>
+<pre><code class="language-python">from dataclasses import replace
+from cpm_lineage import ActionsConfig, plan
+
+plan(data, actions_cfg=replace(ActionsConfig(), scale_min_mult=2.5, head_min_geos=2))
+plan(data, rule_profile=&quot;verdict&quot;)            # another profile
+plan(data, families=[&quot;efficiency&quot;, &quot;bid&quot;])    # a subset of families
+</code></pre>
+</section><section class="pl"><h2 id="7-step-5-the-pipeline-resolves-conflicts-and-caps-the-plan" class="brk step pl"><span class="badge">Step<b>5</b></span><span>The pipeline resolves conflicts and caps the plan</span></h2>
+<p class="q"><strong>Question</strong>Which candidate cards may a person act on, in what order, and how sure is the
+engine?</p>
+<p>The order is fixed. Each stage either removes a card, changes its status, or annotates it.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 392" role="img" aria-labelledby="f3-title f3-desc" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="f3-title">The plan pipeline in its fixed order</title>
+  <desc id="f3-desc">Nine stages in order: holdout draw, rule families, scrub, vetoes, conflict table, confidence and expected value, run check and equity gate, caps, waves. Then the verdict pass. Counts are from the worked example with the holdout off: four candidate cards pass every stage and the verdict pass adds one sweep card, giving five cards, all ACT.</desc>
+  <style>
+    .f3-ink{fill:#17202b}.f3-mut{fill:#5b6775}.f3-h{font-size:12.5px;font-weight:700}.f3-b{font-size:11px}.f3-xs{font-size:10px}
+    .f3-cap{font-size:10px;font-weight:700;letter-spacing:.09em}
+    .f3-st{fill:#fff;stroke:#3b4cc0;stroke-width:1.1}.f3-n{font-size:12.5px;font-weight:700;fill:#3b4cc0}
+    .f3-ct{font-size:11px;font-weight:700;fill:#17202b}
+    .f3-ar{stroke:#5b6775;stroke-width:1.4;fill:none}
+    .f3-sp{fill:#e8ebfb;stroke:#3b4cc0;stroke-width:1.1}
+    .f3-rm{fill:#fbe9e3;stroke:#c2410c;stroke-width:1}.f3-kp{fill:#fdf1d8;stroke:#b45309;stroke-width:1}
+    .f3-ok{fill:#e6f3f1;stroke:#0f766e;stroke-width:1.1}
+  </style>
+  <defs><marker id="f3-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b6775"/></marker></defs>
+  <text class="f3-cap f3-mut" x="8" y="18">THE FIXED ORDER. BELOW EACH RULE: THE COUNT IN THE WORKED EXAMPLE, HOLDOUT OFF</text>
+  <rect class="f3-st" x="8" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="19" y="51">1</text><text class="f3-h f3-ink" x="32" y="51">Holdout</text>
+  <text class="f3-b f3-mut" x="19" y="70.0">stable 15% of</text>
+  <text class="f3-b f3-mut" x="19" y="84.5">entities, per month</text>
+  <line x1="19" y1="107" x2="129" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="19" y="123">0 held</text>
+  <text class="f3-xs f3-mut" x="19" y="136">default run: 3 held</text>
+  <rect class="f3-st" x="150" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="161" y="51">2</text><text class="f3-h f3-ink" x="174" y="51">Families</text>
+  <text class="f3-b f3-mut" x="161" y="70.0">propose cards; held</text>
+  <text class="f3-b f3-mut" x="161" y="84.5">entities are unseen</text>
+  <line x1="161" y1="107" x2="271" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="161" y="123">4 cards</text>
+  <text class="f3-xs f3-mut" x="161" y="136">default run: 3 cards</text>
+  <rect class="f3-st" x="292" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="303" y="51">3</text><text class="f3-h f3-ink" x="316" y="51">Scrub</text>
+  <text class="f3-b f3-mut" x="303" y="70.0">drop cards on held-</text>
+  <text class="f3-b f3-mut" x="303" y="84.5">out or dead entities</text>
+  <line x1="303" y1="107" x2="413" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="303" y="123">0 removed</text>
+  <rect class="f3-st" x="434" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="445" y="51">4</text><text class="f3-h f3-ink" x="458" y="51">Vetoes</text>
+  <text class="f3-b f3-mut" x="445" y="70.0">under test, no lever,</text>
+  <text class="f3-b f3-mut" x="445" y="84.5">not budget-bound</text>
+  <line x1="445" y1="107" x2="555" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="445" y="123">0 vetoed</text>
+  <rect class="f3-st" x="576" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="587" y="51">5</text><text class="f3-h f3-ink" x="600" y="51">Conflicts</text>
+  <text class="f3-b f3-mut" x="587" y="70.0">supply gate, merge,</text>
+  <text class="f3-b f3-mut" x="587" y="84.5">priority table, tension</text>
+  <line x1="587" y1="107" x2="697" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="587" y="123">0 superseded</text>
+  <rect class="f3-st" x="8" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="19" y="193">6</text><text class="f3-h f3-ink" x="32" y="193">Scores</text>
+  <text class="f3-b f3-mut" x="19" y="212.0">confidence 25 to 90,</text>
+  <text class="f3-b f3-mut" x="19" y="226.5">expected value</text>
+  <line x1="19" y1="249" x2="129" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="19" y="265">confidence 67 to 79</text>
+  <rect class="f3-st" x="150" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="161" y="193">7</text><text class="f3-h f3-ink" x="174" y="193">Run check</text>
+  <text class="f3-b f3-mut" x="161" y="212.0">ROAS floor or spend</text>
+  <text class="f3-b f3-mut" x="161" y="226.5">ceiling; equity gate</text>
+  <line x1="161" y1="249" x2="271" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="161" y="265">0 vetoed</text>
+  <text class="f3-xs f3-mut" x="161" y="278">ROAS floor of 7: 1</text>
+  <rect class="f3-st" x="292" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="303" y="193">8</text><text class="f3-h f3-ink" x="316" y="193">Caps</text>
+  <text class="f3-b f3-mut" x="303" y="212.0">per family and lever;</text>
+  <text class="f3-b f3-mut" x="303" y="226.5">25 pending in all</text>
+  <line x1="303" y1="249" x2="413" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="303" y="265">0 capped</text>
+  <rect class="f3-st" x="434" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="445" y="193">9</text><text class="f3-h f3-ink" x="458" y="193">Waves</text>
+  <text class="f3-b f3-mut" x="445" y="212.0">cuts, then bids and</text>
+  <text class="f3-b f3-mut" x="445" y="226.5">tests, then raises</text>
+  <line x1="445" y1="249" x2="555" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="445" y="265">waves 1 to 3</text>
+  <rect class="f3-sp" x="576" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="587" y="193"></text><text class="f3-h f3-ink" x="587" y="193">Verdict pass</text>
+  <text class="f3-b f3-mut" x="587" y="212.0">step 6: shaping,</text>
+  <text class="f3-b f3-mut" x="587" y="226.5">sweeps, eight gates</text>
+  <line x1="587" y1="249" x2="697" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="587" y="265">+1 sweep card</text>
+  <text class="f3-xs f3-mut" x="587" y="278">1 retyped, 1 trimmed</text>
+  <path class="f3-ar" d="M140 86H149" marker-end="url(#f3-a)"/><path class="f3-ar" d="M282 86H291" marker-end="url(#f3-a)"/><path class="f3-ar" d="M424 86H433" marker-end="url(#f3-a)"/><path class="f3-ar" d="M566 86H575" marker-end="url(#f3-a)"/>
+  <path class="f3-ar" d="M140 228H149" marker-end="url(#f3-a)"/><path class="f3-ar" d="M282 228H291" marker-end="url(#f3-a)"/><path class="f3-ar" d="M424 228H433" marker-end="url(#f3-a)"/><path class="f3-ar" d="M566 228H575" marker-end="url(#f3-a)"/>
+  <path class="f3-ar" d="M642 142V157H74V170" marker-end="url(#f3-a)"/>
+  <path class="f3-ar" d="M642 284V300" marker-end="url(#f3-a)"/>
+  <rect class="f3-ok" x="556" y="302" width="156" height="32" rx="8"/>
+  <text class="f3-h f3-ink" x="634" y="322.5" text-anchor="middle">Plan: 5 cards, 5 ACT</text>
+  <text class="f3-b f3-ink" x="8" y="316.5"><tspan font-weight="700">Removed from the plan:</tspan> held-out, dead, merged duplicates, over a cap</text>
+  <text class="f3-b f3-ink" x="8" y="338.5"><tspan font-weight="700">Kept, with a status and a reason:</tspan> vetoed, superseded, tension</text>
+  <text class="f3-xs f3-mut" x="8" y="366">Under the marginal profile, budget cards are re-sized between stages 8 and 9.</text>
+  <text class="f3-xs f3-mut" x="8" y="381">Budget-neutral funding, when asked for, is settled after the verdict pass.</text>
+</svg><figcaption><b>Figure 3.</b> The plan pipeline in its fixed order, with the card counts of the worked example.</figcaption></figure>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>What it does</th>
+<th>One-line rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>holdout</td>
+<td>leaves a stable 15% of eligible entities untouched each month as a comparison group</td>
+<td>held when <code>sha1(entity + "|" + period)[:8] mod 100 &lt; 15</code></td>
+</tr>
+<tr>
+<td>scrub</td>
+<td>removes cards on held-out or dead entities</td>
+<td></td>
+</tr>
+<tr>
+<td>vetoes</td>
+<td>under a running experiment; a raise that is not budget-bound or cannot be stated; a lever the ad type lacks</td>
+<td>status becomes <code>vetoed</code></td>
+</tr>
+<tr>
+<td>conflict table</td>
+<td>supply gate, duplicate merge, bid conflicts, budget conflicts</td>
+<td>highest family priority wins</td>
+</tr>
+<tr>
+<td>scoring</td>
+<td>confidence and expected value for every card</td>
+<td>see below</td>
+</tr>
+<tr>
+<td>guardrail</td>
+<td>one run-level check: a ROAS floor or a spend ceiling</td>
+<td>raises below the floor are vetoed</td>
+</tr>
+<tr>
+<td>equity gate</td>
+<td>no cuts on the brand's own-term campaign while the brand loses share</td>
+<td></td>
+</tr>
+<tr>
+<td>caps</td>
+<td>per family and lever, then 25 pending cards overall</td>
+<td></td>
+</tr>
+<tr>
+<td>waves</td>
+<td>cuts first, bid moves and tests second, raises third</td>
+<td>so outcomes stay readable</td>
+</tr>
+</tbody>
+</table></div>
+<p class="lead"><strong>Conflict table.</strong> When two cards contradict each other on one entity's budget, the family with
+the higher priority wins and the loser becomes <code>superseded</code>:</p>
+<pre class="formula"><code>defense 4.0 &gt; supply 3.5 &gt; efficiency-cut 3.0 &gt; collision 2.5 &gt; growth 2.0 = sov-gap 2.0
+        &gt; geo 1.8 &gt; efficiency-scale 1.5 &gt; bid 1.2 &gt; experiment 1.0
+</code></pre>
+<p>There is one exception. If the losing side carries more than 3 times the winner's stake
+(<code>stake_ratio_valve</code>), the table abstains and the whole group becomes a <strong>tension group</strong>: all
+cards stay visible, and the ledger lets a person apply exactly one.</p>
+<p class="lead"><strong>Confidence.</strong> A bounded sum of labelled parts, so you can re-derive it by hand:</p>
+<pre class="formula"><code>confidence = clamp(40 + evidence window + spend depth + effect clarity or card type
+                      + availability + young entity + realised win rate + precedent, 25, 90)
+</code></pre>
+<p>For the raise on <code>cmp-winner</code>: <code>40 + 15 (30-day evidence window) + 9 (spend depth) + 15 (effect
+clarity: far from breakeven) = 79</code>.</p>
+<p class="lead"><strong>Expected value.</strong> For a budget card, <code>est = budget change x ROAS</code> per day for a raise and
+<code>|budget change| x max(1 - ROAS, 0)</code> for a cut. <code>ev = est x p</code>, where <code>p</code> is the family's realised
+win rate once the ledger holds five paired outcomes, and 0.5 before that.</p>
+<p class="lead"><strong>What the output looks like.</strong> Three runs of the same data:</p>
+<pre class="out"><code>-- default (15% holdout): 3 actionable of 3 cards, holdout cmp-brand, cmp-conquest, cmp-reach
+   pipeline gates fired: none          spine: staircase 1
+   Increase Budget +25% (6,350 -&gt; 7,938)   [cmp-winner]     pending wave=3 conf=79 ACT
+   Hold Bid Under Pressure                 [cmp-generic]    pending wave=2 conf=73 ACT
+   Resolve Keyword Collision               [cmp-overlap]    pending wave=1 conf=73 ACT
+
+-- holdout off: 5 actionable of 5 cards
+   pipeline gates fired: none          spine: bid_ladder 1, justify_or_kill 1, staircase 1
+   Increase Budget +25% (6,350 -&gt; 7,938)   [cmp-winner]     pending wave=3 conf=79 ACT
+   Decrease Bid (first response) -25%      [cmp-conquest]   pending wave=1 conf=67 ACT
+   Hold Bid Under Pressure                 [cmp-generic]    pending wave=2 conf=73 ACT
+   Resolve Keyword Collision               [cmp-overlap]    pending wave=1 conf=73 ACT
+   Justify or Kill (untracked spend)       [cmp-reach]      pending wave=- conf=55 ACT
+
+-- holdout off + run check ROAS &gt;= 7: 4 actionable of 5 cards
+   pipeline gates fired: guardrail 1   note: check roas &gt;= 7.0 (enforced on scale-ups)
+   Decrease Bid (first response) -25%      [cmp-conquest]   pending wave=1 conf=67 ACT
+   Yield the Inflated Auction -15%         [cmp-generic]    pending wave=1 conf=73 ACT
+   Decrease Bid (first response) -25%      [cmp-overlap]    pending wave=1 conf=67 ACT
+   Increase Budget +50% (6,350 -&gt; 9,525)   [cmp-winner]     vetoed  conf=79 NO-ACTION(gate)
+       veto: guardrail: ROAS 6.30 is below the run floor 7.00
+   Justify or Kill (untracked spend)       [cmp-reach]      pending wave=- conf=55 ACT
+</code></pre>
+<p>Three things to notice.</p>
+<ol>
+<li><strong>The holdout hides a planted problem.</strong> In the default run <code>cmp-conquest</code> is held out, so the
+   bleeding keyword on it gets no card. That is the holdout working as designed, and it surprises
+   first-time readers. Turn it off with <code>PipelineConfig(holdout_pct=0)</code> or name the group with
+   <code>plan(data, holdout=[...])</code>.</li>
+<li><strong>No pipeline gate fires on the default run.</strong> The synthetic account has no conflicting cards.
+   The third run shows a gate firing: the run check vetoes the raise and the card stays visible
+   with its reason. A run check also raises the floor the families judge against, which is why the
+   hold on 'protein bar' became a yield and a collision card became a bid cut.</li>
+<li><strong>A vetoed card is kept.</strong> Vetoed and superseded cards stay in <code>Plan.actions</code> with a status and
+   a reason. The only cards removed are merged duplicates, cards on held-out or dead entities, and
+   pending cards beyond a reviewability cap.</li>
+</ol>
+<p><strong>Thresholds that matter</strong> (<code>PipelineConfig</code>):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>holdout_pct</code> / <code>holdout_period</code></td>
+<td>15 / <code>"month"</code></td>
+<td>size and rotation of the untouched group</td>
+</tr>
+<tr>
+<td><code>under_test_days</code></td>
+<td>14</td>
+<td>an applied experiment blocks other moves on the entity this long</td>
+</tr>
+<tr>
+<td><code>priority</code></td>
+<td>the table above</td>
+<td>who wins a budget conflict</td>
+</tr>
+<tr>
+<td><code>stake_ratio_valve</code></td>
+<td>3.0</td>
+<td>loser stake above 3 times the winner's: tension, not a decision</td>
+</tr>
+<tr>
+<td><code>conf_base</code> / <code>conf_min</code> / <code>conf_max</code></td>
+<td>40 / 25 / 90</td>
+<td>the confidence scale</td>
+</tr>
+<tr>
+<td><code>winrate_min_n</code></td>
+<td>5</td>
+<td>paired outcomes needed before a realised win rate is used</td>
+</tr>
+<tr>
+<td><code>ev_prior</code></td>
+<td>0.5</td>
+<td>success probability before that</td>
+</tr>
+<tr>
+<td><code>family_caps</code> / <code>pending_cap</code></td>
+<td>per family / 25</td>
+<td>reviewability caps</td>
+</tr>
+</tbody>
+</table></div>
+<p class="lead"><strong>How to change them.</strong> <code>plan(data, pipeline_cfg=replace(PipelineConfig(), holdout_pct=0,
+pending_cap=40))</code>. A run check is <code>plan(data, check=RunCheck("roas", "&gt;=", 2.0))</code> or
+<code>RunCheck("ad_spend", "&lt;=", 110, "pct")</code> for a spend ceiling. Any other check is recorded and
+disclosed as not machine-enforced.</p>
+<blockquote>
+<p class="lead"><strong>Limit.</strong> The card's expected value is computed on the size the family asked for. In the
+example <code>est_day</code> is 19,996 (3,175 extra budget a day at ROAS 6.30), which is the +50% ask. Step 6
+then trims the raise to +25% and the expected value is not recomputed. Read <code>est_day</code> together
+with <code>change.pct_requested</code>.</p>
+</blockquote>
+</section><section class="pl"><h2 id="8-step-6-verdicts" class="step pl"><span class="badge">Step<b>6</b></span><span>Verdicts</span></h2>
+<p class="q"><strong>Question</strong>For each card: ship it, wait, or hand it to a person?</p>
+<p>Every card leaves with <code>verdict = {"state", "why", "lane"}</code>. Not acting is recorded, never silent.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+<th>Lanes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ACT</code></td>
+<td>ship it</td>
+<td><code>ACT</code></td>
+</tr>
+<tr>
+<td><code>OBSERVE</code></td>
+<td>the read is not trustworthy yet</td>
+<td><code>quarantine</code>, <code>bad-budget-field</code>, <code>insufficient</code>, <code>below-bar</code>, <code>unfillable</code></td>
+</tr>
+<tr>
+<td><code>HOLD</code></td>
+<td>the read is fine but something time-bound must pass</td>
+<td><code>launch-grace</code>, <code>price-event</code>, <code>monitoring-window</code></td>
+</tr>
+<tr>
+<td><code>ESCALATE</code></td>
+<td>a person must decide</td>
+<td><code>automation-owned</code></td>
+</tr>
+<tr>
+<td><code>NO-ACTION</code></td>
+<td>already decided elsewhere</td>
+<td><code>conflict</code>, <code>gate</code>, <code>partitioned</code>, or the card's status</td>
+</tr>
+</tbody>
+</table></div>
+<p>The verdict pass runs in a fixed order: shaping and sweeps first, then the gates (Figure 4).</p>
+<p class="lead"><strong>Shaping (before the gates).</strong></p>
+<ul>
+<li><strong>Bid-down before pause.</strong> A keyword pause is retyped to a -25% bid cut, re-read in 5 days. The
+  pause ships only if the re-read still fails. The cheapest reversible lever goes first.</li>
+<li><strong>Staircase.</strong> A budget raise above 25% is trimmed to 25%, re-read in 7 days. The original ask
+  is kept in <code>change.pct_requested</code>.</li>
+<li><strong>Sweeps.</strong> For entities that received no card: a cumulative-loss sweep (loss of at least 2% of
+  book spend), a freeze on an unowned spend ramp, "winner went dark", "justify or kill" for spend on
+  an ad type with no attributed sales (at least 50,000), and bounded probes for entities stuck under
+  the evidence floor.</li>
+</ul>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 460" role="img" aria-labelledby="f4-title f4-desc" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="f4-title">The verdict spine</title>
+  <desc id="f4-desc">Shaping and sweeps run first: detectors, probes, the contested-day check, then the bid ladder, the staircase and two sweeps. Then eight gates in walk order: integrity, lifecycle, evidence, price event, action lock, automation, risk bars, terminals. Each gate can claim a card for a lane; the first claim wins.</desc>
+  <style>
+    .f4-ink{fill:#17202b}.f4-mut{fill:#5b6775}.f4-h{font-size:12.5px;font-weight:700}.f4-b{font-size:11px}
+    .f4-cap{font-size:10px;font-weight:700;letter-spacing:.09em}
+    .f4-box{fill:#fff;stroke:#c9d1da;stroke-width:1.1}.f4-g{fill:#fff;stroke:#3b4cc0;stroke-width:1.1}
+    .f4-ar{stroke:#5b6775;stroke-width:1.3;fill:none}
+    .f4-ob{fill:#eef1f4;stroke:#8793a1}.f4-ho{fill:#fdf1d8;stroke:#b45309}.f4-es{fill:#f3e8fb;stroke:#7e3fb0}
+    .f4-na{fill:#fbe9e3;stroke:#c2410c}.f4-ac{fill:#e6f3f1;stroke:#0f766e}
+    .f4-p{font-size:10.5px;font-weight:700}
+  </style>
+  <defs><marker id="f4-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b6775"/></marker></defs>
+  <text class="f4-cap f4-mut" x="8" y="18">FIRST: SHAPING AND SWEEPS. MINTED CARDS WALK THE GATES LIKE ANY OTHER CARD</text>
+  <rect class="f4-box" x="8" y="30" width="170" height="86" rx="8"/><text class="f4-h f4-ink" x="19" y="51">1  Detectors</text><text class="f4-b f4-mut" x="19" y="69.0">winner went dark;</text><text class="f4-b f4-mut" x="19" y="83.5">justify or kill (spend</text><text class="f4-b f4-mut" x="19" y="98.0">with no attributed sales)</text><rect class="f4-box" x="186" y="30" width="170" height="86" rx="8"/><text class="f4-h f4-ink" x="197" y="51">2  Probes</text><text class="f4-b f4-mut" x="197" y="69.0">bounded tests for</text><text class="f4-b f4-mut" x="197" y="83.5">entities under the</text><text class="f4-b f4-mut" x="197" y="98.0">evidence floor</text><rect class="f4-box" x="364" y="30" width="170" height="86" rx="8"/><text class="f4-h f4-ink" x="375" y="51">3  Contested days</text><text class="f4-b f4-mut" x="375" y="69.0">a collision whose</text><text class="f4-b f4-mut" x="375" y="83.5">campaigns take turns</text><text class="f4-b f4-mut" x="375" y="98.0">is a schedule: vetoed</text><rect class="f4-box" x="542" y="30" width="170" height="86" rx="8"/><text class="f4-h f4-ink" x="553" y="51">4  Graduate</text><text class="f4-b f4-mut" x="553" y="69.0">bid-down before pause;</text><text class="f4-b f4-mut" x="553" y="83.5">staircase raises;</text><text class="f4-b f4-mut" x="553" y="98.0">loss and ramp sweeps</text>
+  <path class="f4-ar" d="M178 73H185M356 73H363M534 73H541"/>
+  <path class="f4-ar" d="M71 116V156" marker-end="url(#f4-a)"/>
+  <text class="f4-cap f4-mut" x="88" y="142">THEN: EIGHT GATES IN WALK ORDER. THE FIRST GATE TO CLAIM A CARD WINS</text>
+  <rect class="f4-g" x="8" y="160" width="126" height="26" rx="7"/><text class="f4-h f4-ink" x="19" y="177.5">Integrity</text><path class="f4-ar" d="M134 173H154"/><path class="f4-ar" d="M71 186V193"/><rect class="f4-ob" x="158" y="162" width="146" height="22" rx="11"/><text class="f4-p f4-ink" x="169" y="177">OBSERVE(quarantine)</text><rect class="f4-ob" x="310" y="162" width="186" height="22" rx="11"/><text class="f4-p f4-ink" x="321" y="177">OBSERVE(bad-budget-field)</text><text class="f4-b f4-mut" x="506" y="177">one-day cohort; cap under 100</text><rect class="f4-g" x="8" y="193" width="126" height="26" rx="7"/><text class="f4-h f4-ink" x="19" y="210.5">Lifecycle</text><path class="f4-ar" d="M134 206H154"/><path class="f4-ar" d="M71 219V226"/><rect class="f4-ho" x="158" y="195" width="140" height="22" rx="11"/><text class="f4-p f4-ink" x="169" y="210">HOLD(launch-grace)</text><text class="f4-b f4-mut" x="308" y="210">no cuts in the first 5 live days</text><rect class="f4-g" x="8" y="226" width="126" height="26" rx="7"/><text class="f4-h f4-ink" x="19" y="243.5">Evidence</text><path class="f4-ar" d="M134 239H154"/><path class="f4-ar" d="M71 252V259"/><rect class="f4-ob" x="158" y="228" width="160" height="22" rx="11"/><text class="f4-p f4-ink" x="169" y="243">OBSERVE(insufficient)</text><text class="f4-b f4-mut" x="328" y="243">under 1,000 window impressions</text><rect class="f4-g" x="8" y="259" width="126" height="26" rx="7"/><text class="f4-h f4-ink" x="19" y="276.5">Price event</text><path class="f4-ar" d="M134 272H154"/><path class="f4-ar" d="M71 285V292"/><rect class="f4-ho" x="158" y="261" width="133" height="22" rx="11"/><text class="f4-p f4-ink" x="169" y="276">HOLD(price-event)</text><text class="f4-b f4-mut" x="301" y="276">discount swing of 8 points; inert from plan()</text><rect class="f4-g" x="8" y="292" width="126" height="26" rx="7"/><text class="f4-h f4-ink" x="19" y="309.5">Action lock</text><path class="f4-ar" d="M134 305H154"/><path class="f4-ar" d="M71 318V325"/><rect class="f4-ho" x="158" y="294" width="173" height="22" rx="11"/><text class="f4-p f4-ink" x="169" y="309">HOLD(monitoring-window)</text><text class="f4-b f4-mut" x="341" y="309">one open action per entity for 7 days</text><rect class="f4-g" x="8" y="325" width="126" height="26" rx="7"/><text class="f4-h f4-ink" x="19" y="342.5">Automation</text><path class="f4-ar" d="M134 338H154"/><path class="f4-ar" d="M71 351V358"/><rect class="f4-es" x="158" y="327" width="192" height="22" rx="11"/><text class="f4-p f4-ink" x="169" y="342">ESCALATE(automation-owned)</text><text class="f4-b f4-mut" x="360" y="342">a bidder owns the lever; inert from plan()</text><rect class="f4-g" x="8" y="358" width="126" height="26" rx="7"/><text class="f4-h f4-ink" x="19" y="375.5">Risk bars</text><path class="f4-ar" d="M134 371H154"/><path class="f4-ar" d="M71 384V391"/><rect class="f4-ob" x="158" y="360" width="140" height="22" rx="11"/><text class="f4-p f4-ink" x="169" y="375">OBSERVE(below-bar)</text><text class="f4-b f4-mut" x="308" y="375">confidence under: watch 25, bid 45, raise 55, cut 65</text><rect class="f4-g" x="8" y="391" width="126" height="26" rx="7"/><text class="f4-h f4-ink" x="19" y="408.5">Terminals</text><path class="f4-ar" d="M134 404H154"/><rect class="f4-ac" x="158" y="393" width="42" height="22" rx="11"/><text class="f4-p f4-ink" x="169" y="408">ACT</text><rect class="f4-ob" x="206" y="393" width="146" height="22" rx="11"/><text class="f4-p f4-ink" x="217" y="408">OBSERVE(unfillable)</text><rect class="f4-na" x="358" y="393" width="284" height="22" rx="11"/><text class="f4-p f4-ink" x="369" y="408">NO-ACTION(conflict | gate | partitioned)</text>
+  <text class="f4-b f4-mut" x="8" y="438">Every gate is inert when its input is missing: the spine fails open.</text>
+  <text class="f4-b f4-mut" x="8" y="453">Not acting is recorded as a verdict, never as silence.</text>
+</svg><figcaption><b>Figure 4.</b> The verdict spine: shaping first, then eight gates in walk order. The first gate to claim a card wins.</figcaption></figure>
+<p class="lead"><strong>The gates (walk order).</strong> Integrity (phantom one-day cohorts, placeholder budgets), lifecycle (no
+cuts in the first 5 days), evidence (at least 1,000 window impressions), price event (a discount
+swing of 8 points holds media verdicts), action lock (one open action per entity for 7 days),
+automation (do not fight a bidder that owns the lever), risk bars, terminals.</p>
+<p>Every gate is inert without its input. <code>plan()</code> supplies telemetry, the applied-action history and
+the profile's ad-type capabilities. It does not supply a discount index or an automation-owner
+map, so the price-event and automation gates never fire from <code>plan()</code>. To use them, build a
+<code>verdict.SpineContext</code> with <code>price_index</code> and <code>automation</code> and call <code>verdict.run_spine</code> on the
+cards from <code>plan(data, spine=False)</code>.</p>
+<p class="lead"><strong>Risk bars.</strong> The confidence a card must reach depends on how hard the action is to undo:</p>
+<pre class="formula"><code>watch 25 &lt; restore / freeze 30 = experiment 30 &lt; bid 45 &lt; budget raise 55 &lt; any cut 65
+plus 10 on every bar while the whole book is younger than 21 live days
+</code></pre>
+<p class="lead"><strong>What the output looks like.</strong></p>
+<pre class="out"><code>-- classic: {'ACT': 5}
+   ACT                  Increase Budget                    [cmp-winner]   asked +50%, shipped +25%
+   ACT                  Decrease Bid (first response)      [cmp-conquest] ladder=bid-down-first
+   ACT                  Hold Bid Under Pressure            [cmp-generic]
+   ACT                  Resolve Keyword Collision          [cmp-overlap]
+   ACT                  Justify or Kill (untracked spend)  [cmp-reach]
+
+-- verdict rule profile: {'ACT': 8, 'NO-ACTION': 1}
+   NO-ACTION(conflict)  Pause / Negative Keywords          [cmp-conquest]
+   ... (8 ACT cards)
+</code></pre>
+<p>In the classic run the raise was trimmed by the staircase, the keyword pause became a bid cut, and
+a sweep added a "justify or kill" card for the reach campaign, whose spend has no attributed sales.
+Under the <code>verdict</code> profile a pause queued behind a bid cut on the same entity and left as
+<code>NO-ACTION(conflict)</code>. In step 5's third run the vetoed raise left as <code>NO-ACTION(gate)</code>.</p>
+<p><strong>Thresholds that matter</strong> (<code>VerdictConfig</code>): <code>bar_cut</code> 65, <code>bar_budget_up</code> 55, <code>bar_bid</code> 45,
+<code>launch_grace_days</code> 5, <code>evidence_min_impressions</code> 1,000, <code>lock_days</code> 7, <code>staircase_step_pct</code> 25,
+<code>ladder_bid_step_pct</code> -25, <code>bleeder_book_share</code> 0.02, <code>untracked_min_spend</code> 50,000.</p>
+<p class="lead"><strong>How to change them.</strong> <code>plan(data, verdict_cfg=VerdictConfig(bar_cut=70, staircase_step_pct=15))</code>.
+<code>plan(data, spine=False)</code> skips the verdict pass and returns the pipeline's cards untyped.</p>
+<p class="lead"><strong>What the spine needs from you.</strong> The action lock, the bid-ladder memory and ownership read
+<code>plan(..., applied=[...])</code>, a list of <code>AppliedAction</code>. Get it from the ledger with
+<code>ledger.applied_actions(account, platform)</code>. Without it those gates are inert: the spine fails
+open.</p>
+</section><section class="ld"><h2 id="9-step-7-the-ledger-scores-what-happened" class="step ld"><span class="badge">Step<b>7</b></span><span>The ledger scores what happened</span></h2>
+<p class="q"><strong>Question</strong>Did an applied action do what its card predicted?</p>
+<p><code>plan(data, ledger=ActionLedger(), account="...")</code> saves the plan and writes one ledger row per
+card and horizon (7, 14 and 30 days), including the cards that were vetoed or lost a conflict. You
+record decisions with <code>ledger.mark(...)</code>, and once a day you call <code>pair_outcomes(...)</code>.</p>
+<p class="lead"><strong>Formula.</strong></p>
+<pre class="formula"><code>before = [d0 - h, d0)      after = [d0, d0 + h)      d0 = the day the action was applied
+tide   = segment sales in the after window / segment sales in the before window
+expect = ROAS before x clamp(sqrt(tide), 0.5, 2.0)
+</code></pre>
+<p>The <strong>tide</strong> is how the whole market moved. The square root damps it: a market running twice as
+fast raises the expectation by about 1.4 times, not 2.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Direction</th>
+<th><code>On Track</code> when</th>
+<th>Otherwise</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>raise</td>
+<td>ROAS after is at least 85% of the expectation</td>
+<td><code>Off Track</code></td>
+</tr>
+<tr>
+<td>cut</td>
+<td>ROAS after is at least 95% of the expectation and at least 60% of revenue is kept</td>
+<td><code>Review</code></td>
+</tr>
+<tr>
+<td>watch, hold, freeze</td>
+<td>ROAS after is within 15% of the expectation</td>
+<td><code>Review</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The asymmetry is deliberate. A cut that misses is <code>Review</code>, because the money was saved either
+way. A raise that misses is <code>Off Track</code>, because money was spent. Other labels: <code>Too early</code> (before
+day 3), <code>No signal</code> (no spend on one side), <code>Unreadable</code> (another action landed on the same entity
+inside the window). Cards that were not taken are scored as counterfactuals (<code>cf-right</code>,
+<code>cf-wrong</code>, <code>cf-nosignal</code>), which is how the priority table itself can be audited.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 338" role="img" aria-labelledby="f5-title f5-desc" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="f5-title">One ledger row on a timeline</title>
+  <desc id="f5-desc">A plan is saved on 17 March. A card is marked applied on 18 March, which is d0. The before window is the seven days up to d0 and the after window the seven days from d0. The row is paired on 25 March. The 14-day row of the same card is due on 1 April and the 30-day row on 17 April; the data ends on 31 March.</desc>
+  <style>
+    .f5-ink{fill:#17202b}.f5-mut{fill:#5b6775}.f5-h{font-size:12.5px;font-weight:700}.f5-b{font-size:11px}.f5-xs{font-size:10.5px}
+    .f5-cap{font-size:10px;font-weight:700;letter-spacing:.09em}
+    .f5-ax{stroke:#17202b;stroke-width:1.4}.f5-tk{stroke:#17202b;stroke-width:1.2}
+    .f5-bf{fill:#e8ebfb;stroke:#3b4cc0;stroke-width:1}.f5-af{fill:#fdf1d8;stroke:#b45309;stroke-width:1}
+    .f5-ar{stroke:#5b6775;stroke-width:1.3;fill:none}.f5-dash{stroke:#8793a1;stroke-width:1.2;stroke-dasharray:4 4;fill:none}
+    .f5-box{fill:#fff;stroke:#c9d1da;stroke-width:1.1}
+  </style>
+  <defs><marker id="f5-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b6775"/></marker></defs>
+  <text class="f5-cap f5-mut" x="8" y="18">ONE LEDGER ROW: THE RAISE ON CMP-WINNER, 7-DAY HORIZON</text>
+
+  <rect class="f5-bf" x="153" y="96" width="77" height="36" rx="4"/>
+  <text class="f5-b f5-ink" x="191.5" y="111" text-anchor="middle" font-weight="700">before</text>
+  <text class="f5-xs f5-mut" x="191.5" y="125" text-anchor="middle">ROAS 5.248</text>
+  <rect class="f5-af" x="230" y="96" width="77" height="36" rx="4"/>
+  <text class="f5-b f5-ink" x="268.5" y="111" text-anchor="middle" font-weight="700">after</text>
+  <text class="f5-xs f5-mut" x="268.5" y="125" text-anchor="middle">ROAS 5.585</text>
+
+  <line class="f5-ax" x1="20" y1="146" x2="700" y2="146"/>
+  <g class="f5-tk">
+    <line x1="153" y1="140" x2="153" y2="152"/><line x1="219" y1="140" x2="219" y2="152"/>
+    <line x1="230" y1="134" x2="230" y2="158"/><line x1="307" y1="140" x2="307" y2="152"/>
+    <line x1="384" y1="140" x2="384" y2="152"/><line x1="560" y1="140" x2="560" y2="152"/>
+  </g>
+  <line class="f5-dash" x1="373" y1="74" x2="373" y2="146"/>
+  <text class="f5-xs f5-mut" x="378.5" y="84">data ends 31 Mar</text>
+
+  <g class="f5-xs f5-mut" text-anchor="middle">
+    <text x="153" y="170">11 Mar</text><text x="153" y="184">d0 - 7</text>
+    <text x="307" y="170">25 Mar</text><text x="307" y="184">d0 + 7</text>
+    <text x="384" y="170">1 Apr</text><text x="384" y="184">d0 + 14</text>
+    <text x="560" y="170">17 Apr</text><text x="560" y="184">d0 + 30</text>
+  </g>
+  <text class="f5-b f5-ink" x="230" y="172" text-anchor="middle" font-weight="700">18 Mar</text>
+  <text class="f5-xs f5-mut" x="230" y="186" text-anchor="middle">d0: applied</text>
+
+  <path class="f5-ar" d="M219 82V94" marker-end="url(#f5-a)"/>
+  <text class="f5-b f5-ink" x="212.4" y="48" text-anchor="end" font-weight="700">17 Mar: plan saved</text>
+  <text class="f5-xs f5-mut" x="212.4" y="62" text-anchor="end">one row per card and horizon,</text>
+  <text class="f5-xs f5-mut" x="212.4" y="76" text-anchor="end">also for vetoed cards</text>
+
+  <path class="f5-ar" d="M307 66V138" marker-end="url(#f5-a)"/>
+  <text class="f5-b f5-ink" x="313.6" y="48" font-weight="700">25 Mar: paired, once the feed covers the after window</text>
+  <text class="f5-xs f5-mut" x="313.6" y="62">a paired row never changes</text>
+  <text class="f5-xs f5-mut" x="560" y="116" text-anchor="middle">the 14 and 30-day rows of the</text>
+  <text class="f5-xs f5-mut" x="560" y="130" text-anchor="middle">card are paired on these dates</text>
+
+  <rect class="f5-box" x="8" y="212" width="436" height="112" rx="10"/>
+  <text class="f5-h f5-ink" x="20" y="235">The label, by hand</text>
+  <text class="f5-b f5-mut" x="20" y="257">tide = segment sales after / before = 1.027</text>
+  <text class="f5-b f5-mut" x="20" y="275">expectation = 5.248 x sqrt(1.027) = 5.318</text>
+  <text class="f5-b f5-mut" x="20" y="293">a raise is On Track at 85% of that: 4.520</text>
+  <text class="f5-b f5-mut" x="20" y="311">ROAS after is 5.585</text>
+  <rect x="312" y="222" width="120" height="28" rx="14" fill="#e6f3f1" stroke="#0f766e"/>
+  <text class="f5-h" fill="#0f766e" x="372" y="241" text-anchor="middle">On Track</text>
+
+  <path class="f5-ar" d="M444 268H458" marker-end="url(#f5-a)"/>
+  <rect class="f5-box" x="460" y="212" width="252" height="112" rx="10"/>
+  <text class="f5-h f5-ink" x="472" y="235">What it feeds</text>
+  <text class="f5-b f5-mut" x="472" y="257">7-day labels become a win rate per</text>
+  <text class="f5-b f5-mut" x="472" y="273">family. From 5 paired outcomes it</text>
+  <text class="f5-b f5-mut" x="472" y="289">moves confidence by up to 10 points</text>
+  <text class="f5-b f5-mut" x="472" y="305">and replaces the 0.5 success prior.</text>
+</svg><figcaption><b>Figure 5.</b> One ledger row: emit, apply, the before and after windows, the label.</figcaption></figure>
+<p class="lead"><strong>What the output looks like.</strong> The plan was built on data up to 2026-03-17, every actionable card
+was marked applied on 2026-03-18, and pairing ran on later data:</p>
+<pre class="out"><code>pair_outcomes(today=2026-03-22): paired 0, deferred 0, {}
+pair_outcomes(today=2026-03-25): paired 5, deferred 0, {'On Track': 3, 'Review': 1, 'No signal': 1}
+
+family           entity        dir     h  ROAS before  ROAS after   tide  outcome
+efficiency-cut   cmp-conquest  down    7        1.066       1.026  1.027  On Track
+collision        cmp-overlap   down    7        1.757       1.656  1.027  Review
+bid              cmp-generic   none    7        2.770       2.874  1.027  On Track
+efficiency-scale cmp-winner    up      7        5.248       5.585  1.027  On Track
+sov-gap          cmp-reach     none    7        0.000       0.000  1.000  No signal
+win rates (family: (rate, n)): {'efficiency-cut': (1.0, 1), 'collision': (0.0, 1),
+                                'bid': (1.0, 1), 'efficiency-scale': (1.0, 1)}
+</code></pre>
+<p>Check one row by hand. For <code>cmp-overlap</code>: expectation <code>1.757 x sqrt(1.027) = 1.780</code>, the cut bar is
+<code>0.95 x 1.780 = 1.691</code>, and ROAS after is 1.656, so the label is <code>Review</code>.</p>
+<blockquote>
+<p class="lead"><strong>Limit of this example.</strong> The synthetic data does not react when a card is marked applied.
+These labels describe each entity's untreated trajectory. They show the mechanics, not that the
+actions worked.</p>
+</blockquote>
+<p>Three details that matter in practice:</p>
+<ul>
+<li>The ledger measures ROAS on <strong>direct sales</strong> (<code>sales / spend</code>). The plan's entity ROAS counts
+  indirect sales by default, which is why <code>cmp-winner</code> reads 6.30 in the plan and 5.25 here.</li>
+<li>Only the 7-day horizon feeds confidence, and only once a family has 5 paired outcomes
+  (<code>PipelineConfig.winrate_min_n</code>). The win rates above, with <code>n = 1</code>, change nothing yet.</li>
+<li>A row is paired once and then never changes. Pairing waits until the feed covers the whole after
+  window.</li>
+</ul>
+<p><strong>Thresholds that matter</strong> (<code>OutcomeConfig</code>, <code>LedgerConfig</code>): <code>raise_hold</code> 0.85, <code>cut_hold</code> 0.95,
+<code>revenue_retention</code> 0.60, <code>flat_band</code> 0.15, <code>too_early_days</code> 3, <code>horizons</code> (7, 14, 30),
+<code>win_rate_horizon</code> 7. Change them with <code>pair_outcomes(..., cfg=OutcomeConfig(raise_hold=0.9))</code> and
+<code>ActionLedger(cfg=LedgerConfig(horizons=(7, 28)))</code>.</p>
+<p class="lead"><strong>The loop, in code.</strong></p>
+<pre><code class="language-python">from cpm_lineage import plan
+from cpm_lineage.store import ActionLedger, SQLiteBackend
+from cpm_lineage.outcomes import pair_outcomes
+
+ledger = ActionLedger(SQLiteBackend(&quot;ledger.sqlite&quot;))
+name = data.profile.name
+
+p = plan(data, ledger=ledger, account=&quot;acct-1&quot;,
+         applied=ledger.applied_actions(&quot;acct-1&quot;, name))      # arms locks and cooldowns
+ledger.mark(&quot;acct-1&quot;, name, p.id, p.actions[0].id, &quot;applied&quot;)  # an operator decision
+pair_outcomes(ledger, &quot;acct-1&quot;, name, data.perf,               # run once a day
+              today=data.latest_date, offtake=data.offtake)
+</code></pre>
+<p>A second loop, <code>outcomes.evaluate</code>, gives a difference-in-differences read of a logged
+recommendation (the entity's ROAS change minus the same change over the rest of the account) and
+checks from the change log whether the change was actually made.</p>
+</section><section class="plain"><h2 id="10-bringing-your-own-platform" class="brk"><span class="num">10</span>Bringing your own platform</h2>
+<h3 id="the-adapter-contract">The adapter contract</h3>
+<p>An adapter is anything with a <code>profile</code> and a <code>perf_rows()</code> method. In practice you build a
+<code>Dataset</code> (a profile plus lists of records) and pass it to <code>diagnose()</code> and <code>plan()</code>. Three ready
+routes:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Use when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CsvAdapter(path, column_map, profile, ...)</code></td>
+<td>you have exports as files</td>
+</tr>
+<tr>
+<td><code>DataFrameAdapter(frame, column_map, profile, ...)</code></td>
+<td>you already hold a frame or a list of dicts</td>
+</tr>
+<tr>
+<td>subclass <code>BaseAdapter</code> and fill <code>self.dataset</code></td>
+<td>the source is an API with nested records</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>examples/bring_your_own_data.py</code> shows the first and <code>examples/custom_platform_adapter.py</code> the
+third, on an invented platform that has clicks, a second-price auction, no position field and
+country geos. <code>docs/adapter_guide.md</code> is the step-by-step version of this section.</p>
+<h3 id="checklist-what-your-platform-must-provide">Checklist: what your platform must provide</h3>
+<p><strong>Required</strong></p>
+<ul class="check"><li>One row per entity and day with <code>date</code> (a <code>datetime.date</code>), <code>entity_id</code>, <code>spend</code>,
+      <code>impressions</code>.</li>
+<li><code>sales</code> and <code>units</code> for anything you want judged on ROAS.</li>
+<li>A <code>PlatformProfile</code> with at least a <code>name</code>. The defaults describe a single-auction CPM
+      platform with no clicks, a 1-is-best position and an unknown auction type.</li>
+</ul>
+<p><strong>Declare, because a wrong default changes decisions</strong></p>
+<ul class="check"><li><code>status_map</code>: every raw status mapped to a canonical one. Unmapped strings fall back to a
+      small generic vocabulary, and unknown strings read as live.</li>
+<li><code>ad_types</code>: one <code>AdTypeCapability</code> per ad type. Mark types without attributed sales
+      <code>sales_attributed=False</code>, or they will be judged on a ROAS of zero.</li>
+<li><code>currency_unit</code>: the money thresholds assume material campaigns spend thousands of currency
+      units a day. If yours spend 50 a day, set <code>0.01</code>.</li>
+<li><code>position</code>: <code>PositionSemantics(available=False)</code> if there is no position field, and
+      <code>lower_is_better=False</code> if a higher number is better.</li>
+<li><code>auction_type</code>: <code>"first_price"</code> or <code>"second_price"</code>.</li>
+<li><code>biddable_targeting_types</code>: add <code>"audience"</code>, <code>"category"</code> and so on for non-keyword units.</li>
+<li><code>aggregate_geo_labels</code>: long-tail buckets ("others", "rest of world") that must never be a
+      target.</li>
+<li>trading-day hours (<code>PlatformProfile.trading_day_start_hour</code>, <code>trading_day_end_hour</code>,
+      <code>funding_target_hour</code>), if the defaults of 6, 18 and 22 do not fit.</li>
+</ul>
+<p class="lead"><strong>Optional, and how the engine degrades without it.</strong> Measured by removing feeds from the
+synthetic dataset and re-running (seed 7):</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Missing</th>
+<th>What still works</th>
+<th>What goes quiet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>everything but bare delivery rows (no targeting unit, geo or bid columns)</td>
+<td>account identity, shift-share, Pareto drag</td>
+<td>all five finding kinds; attribution is <code>thin-data</code>; the plan is empty; three notes say what was not assessed</td>
+</tr>
+<tr>
+<td>budget pacing feed</td>
+<td>CPM, availability, keyword and collision findings</td>
+<td>budget-bound findings and raise cards; note "budget-bound tests and raise sizing are not assessed"</td>
+</tr>
+<tr>
+<td>share of voice, sell-out and shelf feeds</td>
+<td>CPM rise (as price, without a rival), budget, keyword and collision findings; the raise card</td>
+<td>availability findings, the market read, lever attribution (<code>thin-data</code>); the plan discloses "supply gate NOT armed"</td>
+</tr>
+<tr>
+<td><code>bid</code> and <code>position</code> columns</td>
+<td>all five findings and the same three cards</td>
+<td>the bid and position levers; attribution drops from <code>confirmed</code> to <code>directional</code> on the example entity</td>
+</tr>
+<tr>
+<td>change log</td>
+<td>everything in <code>diagnose()</code> and <code>plan()</code></td>
+<td>taken-detection in <code>outcomes.evaluate</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>The engine never raises because an optional feed is absent. It adds a line to <code>Diagnosis.notes</code> or
+<code>Plan.guard_note</code> saying what was not assessed.</p>
+<h3 id="platform-differences-the-profile-absorbs">Platform differences the profile absorbs</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Your platform</th>
+<th>Declare</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>reports clicks</td>
+<td>nothing needed</td>
+<td><code>ICR = CTR x CVR</code>; split it yourself from <code>clicks</code></td>
+</tr>
+<tr>
+<td>second-price auction</td>
+<td><code>auction_type="second_price"</code></td>
+<td>enables the self-floor check; first-price bid maths is not assumed</td>
+</tr>
+<tr>
+<td>no position</td>
+<td><code>PositionSemantics(available=False)</code></td>
+<td>per-keyword bid rules and the re-slot screen abstain</td>
+</tr>
+<tr>
+<td>audiences, not keywords</td>
+<td><code>biddable_targeting_types={"keyword", "audience"}</code></td>
+<td>the CPM views treat them as biddable units</td>
+</tr>
+<tr>
+<td>a single national auction</td>
+<td><code>geo_grain="none"</code>, no <code>geo</code> on rows</td>
+<td>the geo family returns nothing</td>
+</tr>
+<tr>
+<td>ad types that over-attribute</td>
+<td><code>AdTypeCapability(roas_deflator=0.6)</code></td>
+<td>reported ROAS is multiplied before it is judged</td>
+</tr>
+<tr>
+<td>a display type with no sales</td>
+<td><code>sales_attributed=False</code>, <code>capability_class="reach"</code></td>
+<td>never judged on ROAS; only <code>watch</code> cards</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="plain"><h2 id="11-map-of-the-public-api" class="brk"><span class="num">11</span>Map of the public API</h2>
+<p>The stable top-level names are importable from <code>cpm_lineage</code>. Subsystems are imported from their
+subpackage. This table lists the functions that make a decision; the helpers are in the module
+docstrings.</p>
+<h3 id="entry-points-and-data">Entry points and data</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Function or class</th>
+<th>What it decides or does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>engine</code></td>
+<td><code>diagnose(data, ...)</code></td>
+<td>what moved, why, and where money leaks; returns a <code>Diagnosis</code></td>
+</tr>
+<tr>
+<td><code>engine</code></td>
+<td><code>plan(data, ...)</code></td>
+<td>the reviewable action plan; returns a <code>Plan</code></td>
+</tr>
+<tr>
+<td><code>engine</code></td>
+<td><code>render_report(diagnosis, plan)</code></td>
+<td>plain-text rendering; display only</td>
+</tr>
+<tr>
+<td><code>engine</code></td>
+<td><code>as_dataset(data)</code></td>
+<td>coerces a <code>Dataset</code>, an adapter or a list of <code>PerfRow</code></td>
+</tr>
+<tr>
+<td><code>adapters</code></td>
+<td><code>PlatformProfile</code>, <code>AdTypeCapability</code>, <code>PositionSemantics</code></td>
+<td>the platform declaration</td>
+</tr>
+<tr>
+<td><code>adapters</code></td>
+<td><code>BaseAdapter</code>; <code>CsvAdapter</code>, <code>DataFrameAdapter</code>, <code>SyntheticAdapter</code> (import these three from <code>cpm_lineage</code>)</td>
+<td>the four adapters</td>
+</tr>
+<tr>
+<td><code>adapters</code></td>
+<td><code>build_records(cls, records, column_map)</code></td>
+<td>loose mappings to typed records</td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td><code>EngineConfig</code>, <code>Economics</code>, <code>apply_overrides</code></td>
+<td>shared configuration and per-account overrides</td>
+</tr>
+<tr>
+<td><code>windows</code></td>
+<td><code>trailing_windows</code>, <code>default_windows</code>, <code>resolve_window</code></td>
+<td>which two periods are compared</td>
+</tr>
+<tr>
+<td><code>windows</code></td>
+<td><code>route_tier</code></td>
+<td>data tier from active days: cold, warm, mature, full</td>
+</tr>
+<tr>
+<td><code>liveness</code></td>
+<td><code>is_dead</code>, <code>stale_stopped</code>, <code>dead_for_window</code></td>
+<td>can an entity be acted on; should it appear in an analysis</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="step-1-and-2-decomposition-and-attribution">Step 1 and 2: decomposition and attribution</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Function</th>
+<th>What it decides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>identity</code></td>
+<td><code>decompose_rows</code>, <code>log_decomposition</code></td>
+<td>the exact three-channel split of a ROAS move</td>
+</tr>
+<tr>
+<td><code>identity</code></td>
+<td><code>layer1_verdict</code></td>
+<td>the first read: which of six codes describes a ROAS drop</td>
+</tr>
+<tr>
+<td><code>identity</code></td>
+<td><code>unit_decomposition</code>, <code>value_decomposition</code></td>
+<td>volume versus rate splits of units and of value</td>
+</tr>
+<tr>
+<td><code>decompose</code></td>
+<td><code>shift_share</code>, <code>ad_type_shift_share</code></td>
+<td>mix versus rate, at any grain</td>
+</tr>
+<tr>
+<td><code>decompose</code></td>
+<td><code>pareto_drag_rows</code></td>
+<td>which entities drag blended ROAS down</td>
+</tr>
+<tr>
+<td><code>decompose</code></td>
+<td><code>entry_exit_rows</code></td>
+<td>continuing, entering and exiting entities' share of a ROAS change</td>
+</tr>
+<tr>
+<td><code>attribution</code></td>
+<td><code>build_lever_panel</code></td>
+<td>the entity-by-day lever panel from the feeds</td>
+</tr>
+<tr>
+<td><code>attribution</code></td>
+<td><code>fit_prior</code></td>
+<td>account-level elasticities</td>
+</tr>
+<tr>
+<td><code>attribution</code></td>
+<td><code>attribute</code></td>
+<td>a share of the move per lever, a jury label per lever, one verdict</td>
+</tr>
+<tr>
+<td><code>attribution</code></td>
+<td><code>shapley_attribute</code></td>
+<td>the optional exact-Shapley attributor</td>
+</tr>
+<tr>
+<td><code>recommend</code></td>
+<td><code>recommend</code></td>
+<td>at most three actions for one entity</td>
+</tr>
+<tr>
+<td><code>recommend</code></td>
+<td><code>structural_bleed</code>, <code>priority</code></td>
+<td>waste that exists regardless of any move; triage p0, p1, p2</td>
+</tr>
+<tr>
+<td><code>prescribe</code></td>
+<td><code>prescribe</code></td>
+<td>the single <code>(verb, target, why)</code> row for one entity</td>
+</tr>
+<tr>
+<td><code>coldstart</code></td>
+<td><code>preflight</code>, <code>diagnose_state</code></td>
+<td>calls for an entity too young for a move model</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="step-3-checks">Step 3: checks</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Function</th>
+<th>What it decides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>budget</code></td>
+<td><code>build_budget_telemetry</code>, <code>is_budget_bound</code></td>
+<td>is the entity constrained by its daily budget, under one named definition</td>
+</tr>
+<tr>
+<td><code>budget</code></td>
+<td><code>fit_entity_curve</code>, <code>fit_pooled_curve</code></td>
+<td>the saturation curve and its fit quality</td>
+</tr>
+<tr>
+<td><code>budget</code></td>
+<td><code>probe_budget</code></td>
+<td>the budget facts, and whether a raise is blocked</td>
+</tr>
+<tr>
+<td><code>budget</code></td>
+<td><code>raise_verdict</code></td>
+<td>one verb for a capped entity</td>
+</tr>
+<tr>
+<td><code>budget</code></td>
+<td><code>budget_moves_from_rows</code></td>
+<td>scale starved winners, tighten funded bleeders, release parked budget</td>
+</tr>
+<tr>
+<td><code>budget</code></td>
+<td><code>compare_estimators</code></td>
+<td>the three money estimates of one raise, side by side</td>
+</tr>
+<tr>
+<td><code>cpm</code></td>
+<td><code>explain_cpm_moves</code>, <code>classify_cpm_move</code></td>
+<td>why a keyword's CPM rose</td>
+</tr>
+<tr>
+<td><code>cpm</code></td>
+<td><code>window_compare</code>, <code>daily_tracker</code>, <code>cpm_by_position</code></td>
+<td>CPM views</td>
+</tr>
+<tr>
+<td><code>cpm</code></td>
+<td><code>audit_guardrails</code></td>
+<td>is a position-targeting bidder blind or pinned at its ceiling</td>
+</tr>
+<tr>
+<td><code>cpm</code></td>
+<td><code>check_overpay</code></td>
+<td>three hypotheses for overpaying on a keyword</td>
+</tr>
+<tr>
+<td><code>keywords</code></td>
+<td><code>classify_role</code>, <code>build_lexicon</code></td>
+<td>own brand, sibling brand, competitor or generic</td>
+</tr>
+<tr>
+<td><code>keywords</code></td>
+<td><code>keyword_recs</code>, <code>cut_recs</code>, <code>add_recs</code></td>
+<td>which keywords to cut and which to add</td>
+</tr>
+<tr>
+<td><code>keywords</code></td>
+<td><code>keyword_leaks</code></td>
+<td>cross-campaign leaks and rank overpay</td>
+</tr>
+<tr>
+<td><code>geo</code></td>
+<td><code>geo_drill</code></td>
+<td>where availability moved, ranked by impact</td>
+</tr>
+<tr>
+<td><code>geo</code></td>
+<td><code>geo_quadrants</code>, <code>impact_sizing</code></td>
+<td>posture and money at stake per geo</td>
+</tr>
+<tr>
+<td><code>market</code></td>
+<td><code>market_stats</code>, <code>competition_table</code>, <code>sov_summary</code></td>
+<td>market share, rivals, share of voice</td>
+</tr>
+<tr>
+<td><code>rca</code></td>
+<td><code>run_rca</code></td>
+<td>a market root-cause read of a sales or share move</td>
+</tr>
+<tr>
+<td><code>screen</code></td>
+<td><code>prescreen</code></td>
+<td>which market driver moves with market share</td>
+</tr>
+<tr>
+<td><code>watchdog</code></td>
+<td><code>tripwires</code></td>
+<td>at most five market alerts</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="steps-4-to-7-actions-verdicts-outcomes">Steps 4 to 7: actions, verdicts, outcomes</h3>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Function</th>
+<th>What it decides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>actions</code></td>
+<td><code>context_from_dataset</code></td>
+<td>the window aggregates the families read</td>
+</tr>
+<tr>
+<td><code>actions</code></td>
+<td><code>run_families</code></td>
+<td>the candidate cards</td>
+</tr>
+<tr>
+<td><code>actions.families</code></td>
+<td><code>find_collisions</code></td>
+<td>own-versus-own keyword collisions</td>
+</tr>
+<tr>
+<td><code>actions.pipeline</code></td>
+<td><code>holdout_ids</code></td>
+<td>which entities are held out this period</td>
+</tr>
+<tr>
+<td><code>actions.pipeline</code></td>
+<td><code>plan_actions</code>, <code>build_plan</code></td>
+<td>which cards are actionable; the assembled plan</td>
+</tr>
+<tr>
+<td><code>actions.resolve</code></td>
+<td><code>resolve</code></td>
+<td>supply gate, duplicate merge, bid and budget conflicts</td>
+</tr>
+<tr>
+<td><code>actions.scoring</code></td>
+<td><code>confidence</code>, <code>expected_value</code></td>
+<td>the two scores on every card</td>
+</tr>
+<tr>
+<td><code>actions.scoring</code></td>
+<td><code>apply_marginal</code></td>
+<td>re-sizing on finite-difference marginal ROAS</td>
+</tr>
+<tr>
+<td><code>actions.guardrail</code></td>
+<td><code>apply_guardrail</code>, <code>equity_gate</code></td>
+<td>the run check; the brand-equity gate</td>
+</tr>
+<tr>
+<td><code>actions.rebalance</code></td>
+<td><code>rebalance</code></td>
+<td>donor cuts that fund the plan's raises</td>
+</tr>
+<tr>
+<td><code>verdict</code></td>
+<td><code>run_spine</code></td>
+<td>the whole verdict pass</td>
+</tr>
+<tr>
+<td><code>verdict</code></td>
+<td><code>graduate</code>, <code>detect_families</code>, <code>probes</code></td>
+<td>shaping and sweeps</td>
+</tr>
+<tr>
+<td><code>verdict</code></td>
+<td><code>apply_spine</code>, <code>risk_bar</code></td>
+<td>the gate stack; the confidence bar per action class</td>
+</tr>
+<tr>
+<td><code>conflicts</code></td>
+<td><code>resolve_action_conflict</code>, <code>resolve_data_conflict</code></td>
+<td>one verb when grains disagree; one value when sources disagree</td>
+</tr>
+<tr>
+<td><code>store</code></td>
+<td><code>ActionLedger.save_plan</code>, <code>.mark</code>, <code>.win_rates</code></td>
+<td>persistence, operator decisions, realised win rates</td>
+</tr>
+<tr>
+<td><code>outcomes</code></td>
+<td><code>pair_outcomes</code>, <code>outcome_verdict</code></td>
+<td>the outcome label of an applied action</td>
+</tr>
+<tr>
+<td><code>outcomes</code></td>
+<td><code>counterfactual_verdict</code></td>
+<td>was a card that was not taken right</td>
+</tr>
+<tr>
+<td><code>outcomes</code></td>
+<td><code>evaluate</code>, <code>detect_taken</code></td>
+<td>difference-in-differences; was the change made</td>
+</tr>
+<tr>
+<td><code>scorecard</code></td>
+<td><code>arm</code>, <code>grade</code></td>
+<td>checkpoints armed by one report and graded by the next</td>
+</tr>
+<tr>
+<td><code>queue</code></td>
+<td><code>build_action_queue</code></td>
+<td>one ranked worklist across finding types</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="plain"><h2 id="12-what-was-measured" class=""><span class="num">12</span>What was measured</h2>
+<p>Every evaluation in this repository is on synthetic data with planted events. This section is the
+recovery check behind the worked example. The paper (<code>docs/paper/cpm-lineage-paper.pdf</code>) reports a
+wider set of synthetic experiments from <code>docs/paper/experiments.py</code>: 30 seeds, a world with no
+planted events, a dose-response sweep, a second platform, and the cases where detection failed or
+the plan over-acted.</p>
+<p class="lead"><strong>Setup.</strong> <code>adapters.synthetic.generate(seed)</code> builds a 90-day account with nine campaigns and
+plants five events: a CPM spike on one keyword, an availability drop for one product in one geo, a
+budget-capped winner, a bleeding competitor keyword, and two own campaigns bidding the same
+keyword. The seed changes the noise, not the events.</p>
+<p class="lead"><strong>Command.</strong> <code>python docs/guide/worked_example.py --eval 20</code></p>
+<p class="lead"><strong>Result.</strong> With the default configuration, on seeds 0 to 19:</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Planted event</th>
+<th>Found on its planted target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPM spike on 'protein bar'</td>
+<td>20 of 20 seeds</td>
+</tr>
+<tr>
+<td>availability drop, <code>sku-a2</code> in <code>geo-south</code></td>
+<td>20 of 20 seeds</td>
+</tr>
+<tr>
+<td>budget-capped winner, <code>cmp-winner</code></td>
+<td>20 of 20 seeds</td>
+</tr>
+<tr>
+<td>bleeding keyword 'rivalb bar'</td>
+<td>20 of 20 seeds</td>
+</tr>
+<tr>
+<td>own collision on 'energy bar'</td>
+<td>20 of 20 seeds</td>
+</tr>
+<tr>
+<td>findings that match no planted event</td>
+<td>0 across 20 seeds</td>
+</tr>
+</tbody>
+</table></div>
+<p class="lead"><strong>What this does and does not show.</strong> It shows that the feeds reach the right rules and that the
+rules fire on events of the planted size under seeded noise. The generator and the defaults were
+written together, the events are large (a 1.6 times CPM step, a ROAS of 0.35), and the data
+contains no unplanted problems of the kinds the rules look for. So this is a plumbing check. It
+says nothing about detection rates, false alarms or the right thresholds on a real account.</p>
+</section><section class="plain"><h2 id="13-limits" class=""><span class="num">13</span>Limits</h2>
+<ul>
+<li><strong>The thresholds are judgment defaults.</strong> All 1,040 config fields are starting points. None was
+  fitted to or validated on real account data in this repository. <code>docs/thresholds.md</code> lists every
+  one.</li>
+<li><strong>The three money estimators are not reconciled.</strong> The stake (a rule of thumb), the fitted
+  saturation curve and the finite-difference marginal ROAS answer slightly different questions. The
+  example raise carries a stake of 476,249, an expected value of 19,996 a day at average ROAS 6.30,
+  and a pooled-curve marginal ROAS of 2.80, which would put the same 3,175 a day at about 8,900.
+  Every sized number carries an <code>estimator</code> label. Never add or average across labels.</li>
+<li><strong>Attribution is observational, not causal.</strong> See step 2.</li>
+<li><strong>The self-floor check assumes a second-price auction.</strong> It flags a keyword where your own next
+  campaign beneath you sets your price. It runs only when the profile says <code>second_price</code> and bids
+  are quoted as CPM, and it has not been verified against billed prices.</li>
+<li><strong>The saturation curve is correlational.</strong> It has no demand controls, same-day attribution only,
+  an in-sample fit statistic and no confidence interval. It cannot be fitted for an entity that
+  always spends exactly its cap.</li>
+<li><strong>Window averages lag.</strong> A step change late in a window shows up diluted.</li>
+<li><strong>The finite-difference marginal reads day-of-week variation as spend response.</strong> It is crude by
+  design.</li>
+<li><strong>Expected value is not recomputed after the staircase trim.</strong> See step 5.</li>
+<li><strong>Outcome labels are before-and-after reads adjusted for the market tide.</strong> They are not
+  experiments. The holdout group is drawn and reported, but the library does not compute a
+  holdout-versus-treated comparison for you.</li>
+<li><strong>Money thresholds assume one scale.</strong> Set <code>currency_unit</code> if a material campaign does not spend
+  thousands a day. <code>diagnose()</code> adds a note when the data sits far below the scale; <code>plan()</code> does
+  not.</li>
+</ul>
+</section><section class="plain"><h2 id="14-glossary" class=""><span class="num">14</span>Glossary</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ACT, OBSERVE, HOLD, ESCALATE, NO-ACTION</td>
+<td>the five verdict states a card can leave with (step 6)</td>
+</tr>
+<tr>
+<td>ASP</td>
+<td>average selling price, <code>sales / units</code></td>
+</tr>
+<tr>
+<td>breakeven (<code>be</code>)</td>
+<td>the ROAS at which a first purchase pays for itself, after the lifetime-value multiplier</td>
+</tr>
+<tr>
+<td>budget-bound</td>
+<td>constrained by the daily budget, under one of four named definitions</td>
+</tr>
+<tr>
+<td>card</td>
+<td>one proposed action: lever, direction, size, trigger, stake</td>
+</tr>
+<tr>
+<td>channel</td>
+<td>one of the three identity terms: ICR, ASP, CPM</td>
+</tr>
+<tr>
+<td>collision</td>
+<td>two own entities bidding the same targeting unit in the same auction</td>
+</tr>
+<tr>
+<td>CPM</td>
+<td>cost per thousand impressions, <code>1000 x spend / impressions</code></td>
+</tr>
+<tr>
+<td>entity</td>
+<td>the budget-holding unit: campaign, ad group or line item</td>
+</tr>
+<tr>
+<td>family</td>
+<td>a group of rules that proposes one kind of card</td>
+</tr>
+<tr>
+<td>holdout</td>
+<td>entities left untouched for a period as a comparison group</td>
+</tr>
+<tr>
+<td>horizon</td>
+<td>days after an action at which it is measured: 7, 14, 30</td>
+</tr>
+<tr>
+<td>ICR</td>
+<td>impression conversion rate, <code>units / impressions</code>; <code>ICR1k</code> is per thousand</td>
+</tr>
+<tr>
+<td>jury</td>
+<td>the lever-by-lever comparison of the level model and the day-to-day model</td>
+</tr>
+<tr>
+<td>lane</td>
+<td>a verdict state plus its reason, such as <code>HOLD(launch-grace)</code></td>
+</tr>
+<tr>
+<td>lever</td>
+<td>an entity-by-day quantity that can explain a move: bid, position, share of voice, availability, price</td>
+</tr>
+<tr>
+<td>log-point</td>
+<td>one unit of natural-log change; 0.01 is about 1%</td>
+</tr>
+<tr>
+<td>marginal ROAS</td>
+<td>what the next unit of spend returns, as opposed to the average</td>
+</tr>
+<tr>
+<td>reference money</td>
+<td>the scale the money thresholds are written in; multiplied by <code>currency_unit</code></td>
+</tr>
+<tr>
+<td>ROAS</td>
+<td>return on ad spend, <code>sales / spend</code></td>
+</tr>
+<tr>
+<td>rule profile</td>
+<td><code>classic</code>, <code>marginal</code> or <code>verdict</code>: which rule set the families use</td>
+</tr>
+<tr>
+<td>scale bar</td>
+<td>the ROAS above which adding spend is considered safe, 2 times breakeven by default</td>
+</tr>
+<tr>
+<td>segment</td>
+<td>the competitive set a product sells in</td>
+</tr>
+<tr>
+<td>share of voice (SOV)</td>
+<td>own impressions as a share of all impressions on a targeting unit</td>
+</tr>
+<tr>
+<td>stake</td>
+<td>the money a card puts at risk or could win; its unit differs by family</td>
+</tr>
+<tr>
+<td>targeting unit</td>
+<td>what is bid on: keyword, audience, category</td>
+</tr>
+<tr>
+<td>tension group</td>
+<td>conflicting cards the table declined to decide; a person may apply exactly one</td>
+</tr>
+<tr>
+<td>tide</td>
+<td>the ratio of segment sales after to before an action</td>
+</tr>
+<tr>
+<td>tier 1 / tier 2 lever</td>
+<td>a lever the advertiser controls / an outside condition kept as a control</td>
+</tr>
+<tr>
+<td>wave</td>
+<td>the order to act in: cuts, then bids and tests, then raises</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="plain faq"><h2 id="15-faq" class=""><span class="num">15</span>FAQ</h2>
+<p class="fq">Does it change anything on my ad platform?</p>
+<p>No. It reads records and returns dataclasses. Nothing is applied. <code>ledger.mark(...)</code> records that a
+person applied a card; it does not apply it.</p>
+<p class="fq">Does it need clicks?</p>
+<p>No. The identity uses impressions, units, sales and spend. Clicks are optional.</p>
+<p class="fq">Do I need all the feeds?</p>
+<p>No. Only delivery rows are required. The degradation table in section 10 shows what each missing
+feed turns off.</p>
+<p class="fq">Why did a problem I know about get no card?</p>
+<p>Check four things in this order. The entity may be in the holdout (<code>Plan.holdout</code>). The finding may
+exist in <code>diagnose()</code> with no matching rule in the profile you ran. The card may be in
+<code>Plan.actions</code> with status <code>vetoed</code> or <code>superseded</code> and a reason. Or the money may be under a
+threshold because <code>currency_unit</code> is not set for your scale.</p>
+<p class="fq">Why does <code>diagnose()</code> show a finding that <code>plan()</code> does not act on, or the reverse?</p>
+<p>They are separate reads. <code>diagnose()</code> reports events. <code>plan()</code> runs rule families that have their
+own triggers. A finding is evidence; a card is a proposal.</p>
+<p class="fq">Why is ROAS different in two places?</p>
+<p>Entity ROAS in <code>diagnose()</code> and <code>plan()</code> counts <code>EngineConfig.indirect_sales_weight</code> of indirect
+sales (1.0 by default). The identity table and the ledger read direct sales only. The report labels
+the basis.</p>
+<p class="fq">How do I make a plan reproducible?</p>
+<p>It already is. The clock is the latest date in the data, and the plan id is a hash of the date, the
+rule profile, the options and the card ids. Pass <code>plan_key=</code> if every run should be a new plan. For
+the ledger, pass <code>ActionLedger(clock=...)</code> and <code>today=</code> so no method reads the wall clock.</p>
+<p class="fq">Can I use only part of it?</p>
+<p>Yes. Every subsystem is a set of pure functions. <code>identity.decompose_rows</code> needs only rows and a
+window pair.</p>
+<p class="fq">How do I add a rule?</p>
+<p>A family is a function from <code>ActionContext</code> to a list of cards built with <code>make_card</code>. Add it to
+the <code>actions.families.FAMILY_RULES</code> dict before calling <code>plan()</code>, and give its family name a row in
+<code>PipelineConfig.priority</code> so the conflict table knows where it ranks (an unlisted family ranks
+0).</p>
+<p><strong>What does it not do?</strong></p>
+<ul>
+<li>It does not forecast. There is no demand model and no seasonality model.</li>
+<li>It does not run experiments or compute lift. The holdout is drawn; analysing it is up to you.</li>
+<li>It does not estimate causal effects. Attribution and outcome labels are observational.</li>
+<li>It does not optimise bids continuously or pace budgets intraday. It reviews a window and proposes
+  discrete moves.</li>
+<li>It does not handle creative, audiences as a modelled lever, or cross-platform budget allocation.</li>
+<li>It does not fetch data. There is no API client for any platform.</li>
+<li>It does not know your margin. You state breakeven ROAS and the lifetime-value multiplier.</li>
+<li>It has not been validated on real accounts in this repository.</li>
+</ul>
+<p class="fq">Where are all the thresholds?</p>
+<p><code>docs/thresholds.md</code>, generated from the code by <code>tools/gen_thresholds.py</code>. A test fails if the two
+disagree.</p></section>
+</main>
+<footer class="end">How cpm-lineage works &middot; cpm-lineage 0.1.0 &middot; Deepanshu Sharma &middot;
+generated from <code>docs/how_it_works.md</code> by <code>docs/guide/build_guide.py</code></footer>
+</div>
+</body>
+</html>

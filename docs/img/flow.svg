@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">cpm-lineage data flow</title>
+  <desc id="d">Platform rows go through an adapter into a Dataset. diagnose() returns a Diagnosis and plan() returns a Plan of action cards. The ledger stores the plan, the operator's decisions and the outcome of each applied card, and feeds applied actions and win rates back into the next plan.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="959" height="399" rx="10" fill="#ffffff" stroke="#cbd5e1"/>
+
+  <!-- column 1: rows -->
+  <rect x="24" y="96" width="180" height="168" rx="8" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="114" y="122" text-anchor="middle" font-size="15" font-weight="600" fill="#0f172a">Your rows</text>
+  <text x="114" y="146" text-anchor="middle" font-size="12" fill="#334155">delivery (required)</text>
+  <text x="114" y="166" text-anchor="middle" font-size="12" fill="#475569">budget pacing</text>
+  <text x="114" y="184" text-anchor="middle" font-size="12" fill="#475569">share of voice</text>
+  <text x="114" y="202" text-anchor="middle" font-size="12" fill="#475569">shelf, market sell-out</text>
+  <text x="114" y="220" text-anchor="middle" font-size="12" fill="#475569">change log</text>
+  <text x="114" y="248" text-anchor="middle" font-size="11" fill="#64748b">a missing feed reads "not assessed"</text>
+
+  <!-- column 2: dataset -->
+  <rect x="252" y="124" width="150" height="112" rx="8" fill="#eef2ff" stroke="#6366f1"/>
+  <text x="327" y="152" text-anchor="middle" font-size="15" font-weight="600" fill="#0f172a">Dataset</text>
+  <text x="327" y="176" text-anchor="middle" font-size="12" fill="#334155">neutral records</text>
+  <text x="327" y="196" text-anchor="middle" font-size="12" fill="#334155">+ PlatformProfile</text>
+  <text x="327" y="220" text-anchor="middle" font-size="11" fill="#64748b">built by an adapter</text>
+  <line x1="204" y1="180" x2="250" y2="180" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- column 3: the two calls -->
+  <rect x="456" y="40" width="196" height="120" rx="8" fill="#ecfdf5" stroke="#059669"/>
+  <text x="554" y="66" text-anchor="middle" font-size="15" font-weight="600" fill="#0f172a">diagnose()</text>
+  <text x="554" y="90" text-anchor="middle" font-size="12" fill="#334155">exact ROAS identity</text>
+  <text x="554" y="108" text-anchor="middle" font-size="12" fill="#334155">lever attribution</text>
+  <text x="554" y="126" text-anchor="middle" font-size="12" fill="#334155">typed findings</text>
+  <text x="554" y="148" text-anchor="middle" font-size="11" fill="#64748b">what happened, and why</text>
+
+  <rect x="456" y="200" width="196" height="140" rx="8" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="554" y="226" text-anchor="middle" font-size="15" font-weight="600" fill="#0f172a">plan()</text>
+  <text x="554" y="250" text-anchor="middle" font-size="12" fill="#334155">rule families propose cards</text>
+  <text x="554" y="268" text-anchor="middle" font-size="12" fill="#334155">conflicts, scores, run check</text>
+  <text x="554" y="286" text-anchor="middle" font-size="12" fill="#334155">one verdict per card</text>
+  <text x="554" y="308" text-anchor="middle" font-size="11" fill="#64748b">ACT, OBSERVE, HOLD,</text>
+  <text x="554" y="324" text-anchor="middle" font-size="11" fill="#64748b">ESCALATE, NO-ACTION</text>
+
+  <path d="M402 160 C 428 160, 428 100, 454 100" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M402 200 C 428 200, 428 270, 454 270" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- column 4: outputs -->
+  <rect x="716" y="56" width="220" height="88" rx="8" fill="#f8fafc" stroke="#94a3b8"/>
+  <text x="826" y="84" text-anchor="middle" font-size="15" font-weight="600" fill="#0f172a">Diagnosis</text>
+  <text x="826" y="108" text-anchor="middle" font-size="12" fill="#334155">plain dataclasses, or</text>
+  <text x="826" y="126" text-anchor="middle" font-size="12" fill="#334155">render_report() as text</text>
+  <line x1="652" y1="100" x2="714" y2="100" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <rect x="716" y="200" width="220" height="140" rx="8" fill="#fdf4ff" stroke="#a21caf"/>
+  <text x="826" y="226" text-anchor="middle" font-size="15" font-weight="600" fill="#0f172a">Action ledger</text>
+  <text x="826" y="250" text-anchor="middle" font-size="12" fill="#334155">saves the plan and every card</text>
+  <text x="826" y="268" text-anchor="middle" font-size="12" fill="#334155">records applied / skipped</text>
+  <text x="826" y="286" text-anchor="middle" font-size="12" fill="#334155">pairs before and after windows</text>
+  <text x="826" y="308" text-anchor="middle" font-size="11" fill="#64748b">On Track, Off Track, Review,</text>
+  <text x="826" y="324" text-anchor="middle" font-size="11" fill="#64748b">No signal, Too early, Unreadable</text>
+  <line x1="652" y1="252" x2="714" y2="252" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+  <text x="683" y="244" text-anchor="middle" font-size="11" fill="#475569">Plan</text>
+
+  <!-- feedback -->
+  <path d="M826 340 L826 372 L554 372 L554 342" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a)"/>
+  <text x="690" y="390" text-anchor="middle" font-size="11" fill="#475569">applied actions arm locks and cooldowns; win rates feed card confidence</text>
+</svg>

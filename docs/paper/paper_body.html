@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CPM Lineage: A Deterministic, Auditable Decision Framework for CPM-Billed Advertising</title>
+<meta name="author" content="Deepanshu Sharma">
+<style>
+@page { size: A4; margin: 19mm 19mm 20mm 19mm; }
+* { box-sizing: border-box; }
+html { font-size: 10.2pt; }
+body { font-family: "Liberation Serif", "Times New Roman", Times, serif; color: #0b0b0b; background: #ffffff;
+       line-height: 1.36; margin: 0 auto; max-width: 172mm; padding: 0; text-align: justify; hyphens: auto;
+       -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+@media screen { body { padding: 14mm 6mm; } }
+h1 { font-size: 19pt; line-height: 1.15; text-align: center; margin: 0 0 7pt; font-weight: bold; hyphens: none; }
+.author { text-align: center; font-size: 11.5pt; margin: 0 0 2pt; }
+.meta { text-align: center; font-size: 9pt; color: #52514e; margin: 0 0 12pt; }
+.abstract { margin: 0 9mm 12pt; font-size: 9.6pt; }
+.abstract b.h { display: block; text-align: center; font-size: 10pt; margin-bottom: 3pt; }
+h2 { font-size: 12.4pt; margin: 14pt 0 5pt; break-after: avoid; text-align: left; hyphens: none; }
+h3 { font-size: 10.6pt; margin: 9pt 0 3pt; break-after: avoid; text-align: left; font-style: italic; hyphens: none; }
+p { margin: 0 0 5.5pt; orphans: 3; widows: 3; }
+ul, ol { margin: 0 0 5.5pt; padding-left: 15pt; }
+li { margin-bottom: 1.5pt; }
+code { font-family: "Liberation Mono", "DejaVu Sans Mono", monospace; font-size: 0.86em; hyphens: none; }
+figure { margin: 9pt 0 10pt; break-inside: avoid; }
+figure svg { display: block; width: 100%; height: auto; }
+figcaption, .tcap { font-size: 8.9pt; line-height: 1.3; color: #0b0b0b; margin-top: 4pt; text-align: left; hyphens: none; }
+.tcap { margin: 9pt 0 3pt; break-after: avoid; }
+table.t { border-collapse: collapse; width: 100%; table-layout: fixed; font-family: "Liberation Sans", Arial, sans-serif;
+          font-size: 7.9pt; line-height: 1.25; text-align: left; hyphens: none; margin: 0 0 9pt; }
+table.t th { border-top: 1pt solid #0b0b0b; border-bottom: 0.6pt solid #0b0b0b; padding: 3pt 4pt; font-weight: bold; vertical-align: bottom; }
+table.t td { padding: 2.4pt 4pt; border-bottom: 0.3pt solid #d9d8d3; vertical-align: top; overflow-wrap: anywhere; }
+table.t tbody tr:last-child td { border-bottom: 1pt solid #0b0b0b; }
+table.t tr { break-inside: avoid; }
+table.t code { font-size: 0.95em; }
+table.thr { font-size: 7.3pt; }
+table.thr td { padding: 1.7pt 4pt; }
+thead { display: table-header-group; }
+.tblock { break-inside: avoid; }
+.eq { display: flex; align-items: center; margin: 5pt 0 7pt; break-inside: avoid; }
+.eq .m { flex: 1; text-align: center; overflow: visible; }
+.eq .n { width: 9mm; text-align: right; font-size: 9.6pt; }
+math { font-family: "Liberation Serif", "DejaVu Serif", serif; font-size: 1.06em; }
+mi { text-transform: none; font-style: italic; }
+mi[mathvariant="normal"] { font-style: normal; }
+mtext { font-style: normal; }
+.cmd { text-align: left; margin: 2pt 0 5.5pt 10pt; }
+.refs { font-size: 8.9pt; text-align: left; hyphens: none; }
+.refs p { margin: 0 0 2.6pt; padding-left: 14pt; text-indent: -14pt; }
+.small { font-size: 9pt; }
+</style>
+</head>
+<body>
+
+<h1>CPM Lineage: A Deterministic, Auditable Decision Framework for CPM-Billed Advertising</h1>
+<p class="author">Deepanshu Sharma</p>
+<p class="meta">Describes the open-source Python library <code>cpm_lineage</code>, version [[version]]. All measurements in this paper are on synthetic data.</p>
+
+<div class="abstract">
+<b class="h">Abstract</b>
+Many ad platforms bill per thousand impressions (CPM) and report few or no clicks, so optimisation routines written
+around cost per click and click-through rate do not apply to them, and the automation such platforms offer rarely
+states why it acts. We describe <code>cpm_lineage</code>, a library that diagnoses and plans for a CPM-billed account
+under one constraint: every recommendation must trace to a number computed from the advertiser's own exports and to a
+named threshold. The library has two layers. The first is exact: return on ad spend factors into conversions per
+impression, selling price and CPM, and the log of any change splits into three terms with zero residual; midpoint
+shift-share extends this to any grain. The second is estimated and labelled as such: a sign-constrained ridge model
+pooled toward account-level elasticities attributes the change to eleven levers and is accepted only when an
+independent first-difference model agrees; a two-parameter saturation curve gates budget raises at the point where
+marginal return falls to one. Rule families turn these readings into action cards; a fixed priority table resolves
+contradictions or abstains; an ordered gate stack gives every card one of five typed states; a ledger scores
+outcomes, including those of cards that were not taken. The library is pure Python with numpy as its only dependency.
+On [[n_seeds]] seeded synthetic datasets with five planted events, all five were found in every run with
+[[extra_a]] findings on unplanted subjects, and a world with the events removed produced none; residuals of the
+log identity and of the ROAS shift-shares stayed below 10<sup>&minus;14</sup>; output was identical under repetition and row shuffling. A second,
+differently shaped platform ran through an adapter without library changes. We also report where the method failed or
+over-acted on synthetic data, and state plainly what synthetic tests cannot show: the thresholds are judgment
+defaults, and nothing here measures performance on a real account.
+</div>
+
+<h2>1&ensp;Introduction</h2>
+<p>Search advertising practice grew up around the click. Bids are set per click, the funnel is read as impressions,
+click-through rate and conversion rate, and most published optimisation routines assume that all three are observed.
+A large class of platforms does not fit this picture: quick-commerce marketplaces, retail media networks and display
+exchanges commonly charge per thousand impressions (<i>CPM</i>), and several report no click at all. On such a
+platform the advertiser pays for being shown, the price paid per impression moves with the auction rather than with
+the advertiser's own conversion, and a click-based routine has nothing to hold on to.</p>
+<p>The second difficulty is opacity. Platform-side and third-party automation usually emits a recommendation or simply
+changes a bid, without the evidence behind it. An operator who is asked to approve a budget increase cannot check
+whether the increase follows from the data, from a default, or from a model's extrapolation. When two automated
+recommendations contradict each other on the same campaign, it is often not recorded which one won or why.</p>
+<p>This paper describes a library built under one design constraint: <i>every recommendation traces to a number and
+a named threshold</i>. Concretely, (i) every quantity is computed by a pure function from plain records, with no
+network or database access; (ii) every threshold is a named field of a frozen configuration dataclass with a default
+and a one-line rationale ([[n_cfg_fields]] fields across [[n_cfg_cls]] configuration and platform-profile dataclasses at the time of writing, as listed in <code>docs/thresholds.md</code>, counting labels and
+vocabularies as well as numeric thresholds); (iii) every
+finding names the module whose numbers it carries; (iv) every action card carries its trigger sentence, its evidence
+mapping, a confidence score that is a sum of labelled parts, and a typed state; and (v) declining to act is a recorded
+outcome with a reason code, never silence. No learned policy takes part in the decision. The estimated components (a
+ridge regression and a curve fit) are fitted deterministically and their output is used only through thresholds.</p>
+<p>The contributions are: an exact three-channel identity for return on ad spend under CPM billing and a family of
+exact decompositions around it (Section&nbsp;3); a two-model attribution with an explicit agreement test and an
+abstaining verdict (Section&nbsp;4); a budget gate based on marginal rather than average return (Section&nbsp;5); CPM
+and bidder audits (Section&nbsp;6); a deterministic action layer with a conflict table that can abstain
+(Section&nbsp;7); an outcome ledger that also scores untaken actions (Section&nbsp;8); a platform abstraction
+(Section&nbsp;9); and a reproducible evaluation on synthetic data with planted events (Section&nbsp;10), followed by
+the limits of all of the above (Section&nbsp;11). Figure&nbsp;1 shows the whole path.</p>
+
+<figure>[[fig_pipeline]]
+<figcaption><b>Figure 1.</b> The path from rows to a plan. Counts in blue are from one run on the default synthetic
+dataset (seed 7, holdout switched off). Black arrows are computed in a single call; blue arrows need an operator to
+mark cards as applied and later data to arrive.</figcaption></figure>
+
+<h2>2&ensp;Related work</h2>
+<p><b>Attribution and Shapley values.</b> The Shapley value [1] assigns a cooperative game's payoff to its players and
+is the basis of model-explanation methods that attribute a prediction to features [2, 3]. In advertising, data-driven
+attribution assigns conversions to touchpoints [4, 5]. Our use is narrower: we attribute the <i>change</i> of a metric
+between two windows to the change of each lever. For a model that is linear in its inputs this value has the closed
+form coefficient times change, which the default path uses; exact enumeration is kept for non-linear models.</p>
+<p><b>Shift-share and index decomposition.</b> Splitting the change of an aggregate rate into a composition part and a
+within-group part goes back to shift-share analysis in regional science [6] and to wage decompositions [7], where the
+result depends on which period's weights are used. Index decomposition analysis treats the same problem for products
+of factors; logarithmic methods are preferred there because they leave no residual [8], and the log-change index
+numbers of Sato and Vartia [9, 10] give exact additive forms. Our identity layer is a log decomposition of a
+three-factor product; our shift-share uses midpoint weights, which removes the interaction term.</p>
+<p><b>Media-mix models and saturation.</b> Media-mix models regress sales on spend with carry-over
+(&ldquo;adstock&rdquo; [11]) and a concave response [12], and their difficulties with correlated inputs and limited
+variation are well documented [13]. We fit a two-parameter concave curve per campaign for one purpose only, to locate
+where marginal return falls to one, and treat it as correlational.</p>
+<p><b>Auction theory.</b> In a second-price auction a winner pays the next bid [14, 15]; the generalized second-price
+and position auctions used for sponsored listings extend this to ranked slots [16, 17]. Many display and marketplace
+auctions are first-price, where the winner pays its own bid. The library records the auction type per platform and
+applies one check (Section&nbsp;6) only under second-price rules.</p>
+<p><b>Rule-based and learned bidding.</b> Learned bidding optimises a bid function or policy from logged auctions
+[18, 19, 20]; reviews of display markets describe the setting [21]. Such systems can outperform fixed rules where
+data are plentiful, but their decisions are hard to audit. Our position follows the argument that interpretable
+models are preferable where a human must sign off on the decision [22]. Field experiments show that advertising effects are hard to measure and that observational estimates
+can differ widely from experimental ones [23, 24, 25]; we therefore label attribution as
+observational and build a holdout and a difference-in-differences read [26, 27] into the feedback loop.</p>
+
+<h2>3&ensp;The CPM identity and exact decomposition</h2>
+<p>For any scope (account, campaign, keyword) and window, let <i>S</i> be spend, <i>R</i> attributed sales, <i>I</i>
+impressions and <i>U</i> units sold. Define three <i>channels</i>, each a ratio of window sums:</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<mtext>CPM</mtext><mo>=</mo><mfrac><mrow><mn>1000</mn><mi>S</mi></mrow><mi>I</mi></mfrac><mo>,</mo><mspace width="1.2em"/>
+<mtext>ICR</mtext><mo>=</mo><mfrac><mrow><mn>1000</mn><mi>U</mi></mrow><mi>I</mi></mfrac><mo>,</mo><mspace width="1.2em"/>
+<mtext>ASP</mtext><mo>=</mo><mfrac><mi>R</mi><mi>U</mi></mfrac>
+</mrow></math></div><div class="n">(1)</div></div>
+<p>CPM is cost per thousand impressions, ICR (impression conversion rate) is units per thousand impressions (<code>icr1k</code> in the code and guides), and ASP
+is the average selling price. Return on ad spend (ROAS) is <i>R</i>/<i>S</i>. Multiplying and dividing by <i>U</i> and
+<i>I</i>, the impression count and the unit count cancel:</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<mtext>ROAS</mtext><mo>=</mo><mfrac><mi>R</mi><mi>S</mi></mfrac><mo>=</mo>
+<mfrac><mrow><mo>(</mo><mn>1000</mn><mi>U</mi><mo>/</mo><mi>I</mi><mo>)</mo><mo>&#x22C5;</mo><mo>(</mo><mi>R</mi><mo>/</mo><mi>U</mi><mo>)</mo></mrow>
+<mrow><mn>1000</mn><mi>S</mi><mo>/</mo><mi>I</mi></mrow></mfrac><mo>=</mo>
+<mfrac><mrow><mtext>ICR</mtext><mo>&#x22C5;</mo><mtext>ASP</mtext></mrow><mtext>CPM</mtext></mfrac>
+</mrow></math></div><div class="n">(2)</div></div>
+<p>No click appears. Where clicks exist, ICR is the product of click-through and conversion rates (times the same 1000) and nothing else
+changes. Taking logarithms of (2) in a baseline window <i>b</i> and a comparison window <i>c</i> and subtracting,
+with &Delta;&nbsp;ln&nbsp;<i>X</i> = ln&nbsp;<i>X<sub>c</sub></i> &minus; ln&nbsp;<i>X<sub>b</sub></i>:</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<mi mathvariant="normal">&#x394;</mi><mspace width="0.12em"/><mi>ln</mi><mspace width="0.2em"/><mtext>ROAS</mtext><mo>=</mo>
+<mi mathvariant="normal">&#x394;</mi><mspace width="0.12em"/><mi>ln</mi><mspace width="0.2em"/><mtext>ICR</mtext><mo>+</mo>
+<mi mathvariant="normal">&#x394;</mi><mspace width="0.12em"/><mi>ln</mi><mspace width="0.2em"/><mtext>ASP</mtext><mo>&#x2212;</mo>
+<mi mathvariant="normal">&#x394;</mi><mspace width="0.12em"/><mi>ln</mi><mspace width="0.2em"/><mtext>CPM</mtext>
+</mrow></math></div><div class="n">(3)</div></div>
+<p>Equation (3) is an identity, not a model: it holds to floating-point precision whenever all four sums are positive
+in both windows. We call it <i>layer&nbsp;1</i>. Each term is a signed contribution in log points, and a channel's
+share of the move is its term divided by the left-hand side. Three implementation rules keep it exact. Ratios are
+always computed from window sums, never as a mean of daily ratios. Every spend day is included, including days with
+no sale. And a channel value is floored at 10<sup>&minus;9</sup> before the logarithm; if the floor is hit the result
+is flagged as not exact rather than reported as if it were. When the net move is close to zero
+(|&Delta;&nbsp;ln&nbsp;ROAS| &le; 10<sup>&minus;4</sup>) the shares would divide by almost nothing, so a fallback
+denominator is used and callers can suppress shares altogether. Figure&nbsp;2 shows the decomposition from one run.</p>
+
+<figure>[[fig_waterfall]]
+<figcaption><b>Figure 2.</b> Equation (3) as a waterfall, from the default synthetic dataset (seed 7; last 30 days
+against the 30 before). Left: the account. Right: the campaign that carries a planted &times;1.6 CPM rise on one of
+its four keywords. The bars sum to the log ROAS ratio to within 2&times;10<sup>&minus;15</sup>.</figcaption></figure>
+
+<h3>3.1&ensp;A first read from the three channels</h3>
+<p>For a ROAS fall with enough spend, a decision table names the channel with the most negative term. If it is CPM,
+the bid change separates four cases at a 7% band: bid flat (&ldquo;auction pressure&rdquo;), bid raised
+(&ldquo;self-inflicted&rdquo;), bid cut (pressure despite a lower bid) and no bid data (stated as unknown). If it is ICR
+the read is &ldquo;conversion fell&rdquo;; otherwise &ldquo;selling price fell&rdquo;. This is a classification of an
+exact split, with no claim about cause.</p>
+
+<h3>3.2&ensp;Mix against rate at any grain</h3>
+<p>A blended rate <i>R</i> = &Sigma;<i>value</i>/&Sigma;<i>weight</i> (ROAS with spend as weight, ASP with units as
+weight, CPM with impressions as weight) can be written as &Sigma;<sub><i>i</i></sub>&nbsp;<i>w<sub>i</sub>r<sub>i</sub></i>
+over items <i>i</i> with weight share <i>w<sub>i</sub></i> and own rate <i>r<sub>i</sub></i>. For each item the
+product rule with midpoint weights gives</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<msubsup><mi>w</mi><mi>i</mi><mi>c</mi></msubsup><msubsup><mi>r</mi><mi>i</mi><mi>c</mi></msubsup><mo>&#x2212;</mo>
+<msubsup><mi>w</mi><mi>i</mi><mi>b</mi></msubsup><msubsup><mi>r</mi><mi>i</mi><mi>b</mi></msubsup><mo>=</mo>
+<munder><munder><mrow><mo>(</mo><msubsup><mi>w</mi><mi>i</mi><mi>c</mi></msubsup><mo>&#x2212;</mo><msubsup><mi>w</mi><mi>i</mi><mi>b</mi></msubsup><mo>)</mo>
+<mfrac><mrow><msubsup><mi>r</mi><mi>i</mi><mi>c</mi></msubsup><mo>+</mo><msubsup><mi>r</mi><mi>i</mi><mi>b</mi></msubsup></mrow><mn>2</mn></mfrac></mrow><mo>&#x23DF;</mo></munder><mtext>mix</mtext></munder>
+<mo>+</mo>
+<munder><munder><mrow><mfrac><mrow><msubsup><mi>w</mi><mi>i</mi><mi>c</mi></msubsup><mo>+</mo><msubsup><mi>w</mi><mi>i</mi><mi>b</mi></msubsup></mrow><mn>2</mn></mfrac>
+<mo>(</mo><msubsup><mi>r</mi><mi>i</mi><mi>c</mi></msubsup><mo>&#x2212;</mo><msubsup><mi>r</mi><mi>i</mi><mi>b</mi></msubsup><mo>)</mo></mrow><mo>&#x23DF;</mo></munder><mtext>rate</mtext></munder>
+</mrow></math></div><div class="n">(4)</div></div>
+<p>which can be checked by expanding the right-hand side: the cross terms cancel. Summing (4) over items gives
+<i>R<sub>c</sub></i> &minus; <i>R<sub>b</sub></i> with no interaction term. One function implements (4); shift-share
+by ad type, campaign, keyword, product or geography is the same call with a different key, and the price split of an
+ASP move (product mix against own-price change) is the same call with units as the weight. An item present in only one
+window is handled by a stated convention (missing rate taken as zero, or the single available rate carried), both
+exact. Value recorded against an item with no weight cannot enter a share identity and is reported separately instead
+of being folded in.</p>
+<p>Two further exact splits are provided. The <i>prior-rate two-factor</i> split of a product <i>V</i>&middot;<i>r</i>,
+(<i>V<sub>c</sub></i> &minus; <i>V<sub>b</sub></i>)<i>r<sub>b</sub></i> + <i>V<sub>c</sub></i>(<i>r<sub>c</sub></i> &minus; <i>r<sub>b</sub></i>),
+assigns the interaction to the rate effect and is used for units (impressions &times; conversion) and value (units
+&times; price); it is a different convention from (4) and the two are never mixed inside one identity. The
+<i>entry/exit</i> split separates the effect of continuing entities from that of entities that started or stopped,
+measuring an entrant against the prior blended ROAS so that a weak launch reads as a drag; its fourth term
+(re-weighting among continuing entities) is defined as the remainder. A Pareto ranking of
+<i>spend</i>&nbsp;&times;&nbsp;(<i>reference ROAS</i> &minus; <i>entity ROAS</i>) orders where to look first; it is a
+ranking device, since against a reference computed on the same set the drags sum to zero.</p>
+
+<h2>4&ensp;Lever attribution</h2>
+<p>Layer 1 says through which channel ROAS moved. <i>Layer&nbsp;2</i> asks which observable conditions moved with it.
+A <i>lever</i> is one scalar per entity and day. There are eleven, in two tiers. Eight <i>tier-1</i> levers are things
+an advertiser controls: bid, ad position, own paid share of voice, own organic share of voice, own availability,
+share of spend on competitor-targeted units, own discount, and the own-to-competitor price ratio. Three <i>tier-2</i>
+levers are outside conditions: the log of total impressions on the entity's targeting units (a demand control),
+competitor availability and competitor discount. Tier-2 levers stay in the model to reduce omitted-variable bias but
+can never be the subject of an action; they only produce a context note. Two further rules shape the set: mirrored
+quantities are modelled once (competitor paid share is one minus own), and only <i>n</i>&nbsp;&minus;&nbsp;1 members
+of a partition enter.</p>
+<p><b>Preparation.</b> Out-of-range values (a position above 500, a share outside [0,&nbsp;1]) become missing. A
+lever enters the model only if more than 20% of days carry a real value, and is removed if more than 40% would be
+imputed; a variance-inflation check may fold the two discounts into the price ratio. With fewer than four usable
+levers no entity model is fitted. Data volume routes the method: under 21 active days there is no move model at all,
+21&ndash;34 days use a short mode with seven fast-moving levers, and 35 or more use the full set. The panel is
+clipped to the two compared windows, so a week-over-week comparison returns &ldquo;thin data&rdquo; instead of a fit
+on history outside the windows.</p>
+<p><b>Backbone.</b> For each channel <i>k</i> the daily log channel <i>y<sub>k</sub></i> is regressed on z-scored
+levers <i>Z</i> by a ridge regression [28] shrunk toward account-level coefficients
+<i>&beta;</i><sub>0</sub> (fitted once on the pooled panel) with box constraints on signs that economics fixes:</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<msub><mi>w</mi><mi>k</mi></msub><mo>=</mo>
+<munder><mrow><mi>arg</mi><mo>&#x2009;</mo><mi>min</mi></mrow><mrow><mi>lo</mi><mo>&#x2264;</mo><mi>w</mi><mo>&#x2264;</mo><mi>hi</mi></mrow></munder>
+<mspace width="0.4em"/>
+<msup><mrow><mo>&#x2016;</mo><mo>(</mo><mi>Z</mi><mo>&#x2212;</mo><mover><mi>z</mi><mo>&#xAF;</mo></mover><mo>)</mo><mi>w</mi><mo>&#x2212;</mo>
+<mo>(</mo><msub><mi>y</mi><mi>k</mi></msub><mo>&#x2212;</mo><msub><mover><mi>y</mi><mo>&#xAF;</mo></mover><mi>k</mi></msub><mo>)</mo><mo>&#x2016;</mo></mrow><mn>2</mn></msup>
+<mo>+</mo><mi>&#x3BB;</mi>
+<msup><mrow><mo>&#x2016;</mo><mi>w</mi><mo>&#x2212;</mo><msub><mi>&#x3B2;</mi><mrow><mn>0</mn><mo>,</mo><mi>k</mi></mrow></msub><mo>&#x2016;</mo></mrow><mn>2</mn></msup>
+</mrow></math></div><div class="n">(5)</div></div>
+<p>The sign constraints are seven: on ICR, availability, paid share and discount cannot have a negative coefficient
+and position and price ratio cannot have a positive one; on CPM, bid cannot be negative; on ASP, discount cannot be
+positive. The position constraint flips for platforms where a higher number is better. The problem is strictly convex
+and is solved by cyclic coordinate descent, so the result does not depend on a random start. The strength &lambda; is
+chosen from {1, 4, 16, 64} by blocked, expanding-window cross-validation in full mode and fixed at 16 in short mode.
+Because the model is linear in <i>z</i>, lever <i>j</i>'s contribution to the log ROAS move is</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<msub><mi>c</mi><mi>j</mi></msub><mo>=</mo><munder><mo>&#x2211;</mo><mi>k</mi></munder>
+<msub><mi>s</mi><mi>k</mi></msub><mo>&#x2009;</mo><msub><mi>w</mi><mrow><mi>k</mi><mo>,</mo><mi>j</mi></mrow></msub>
+<mo>(</mo><msubsup><mover><mi>z</mi><mo>&#xAF;</mo></mover><mi>j</mi><mi>c</mi></msubsup><mo>&#x2212;</mo>
+<msubsup><mover><mi>z</mi><mo>&#xAF;</mo></mover><mi>j</mi><mi>b</mi></msubsup><mo>)</mo><mo>,</mo>
+<mspace width="1em"/><msub><mi>s</mi><mtext>ICR</mtext></msub><mo>=</mo><msub><mi>s</mi><mtext>ASP</mtext></msub><mo>=</mo><mn>+1</mn><mo>,</mo>
+<mspace width="0.5em"/><msub><mi>s</mi><mtext>CPM</mtext></msub><mo>=</mo><mn>&#x2212;1</mn>
+</mrow></math></div><div class="n">(6)</div></div>
+<p>which equals the Shapley value of the fitted model for the move from baseline to comparison means.</p>
+<p><b>Cross-check.</b> A levels regression can be confounded by slow trends. A second, independent ridge is therefore
+fitted on day-to-day first differences of the same series (optionally with a geometric carry-over on visibility
+levers, accepted only if it beats the raw model's skill by a margin). Its one-step-ahead <i>skill</i> against
+persistence is 1&nbsp;&minus;&nbsp;SSE<sub>model</sub>/SSE<sub>persistence</sub>: zero means no better than
+&ldquo;tomorrow equals today&rdquo;. The skill reported is always that of the raw difference model, to avoid
+reporting the best of several variants scored on the same folds.</p>
+<p><b>Jury and verdict.</b> Each lever gets a <i>jury label</i>: <i>confirm</i> when both models assign it at least
+5% of the move with the same sign, <i>contest</i> when both are material with opposite signs, <i>solo</i> when only
+the backbone is. One <i>attribution verdict</i> then covers the whole reading, first match winning: <i>thin-data</i>;
+<i>unexplained</i> when the model explains less than 20% of the move, when the move is small but lever activity is
+large and offsetting, when the largest lever is contested, or when skill is below &minus;0.25; <i>confirmed</i> when
+the largest lever is confirmed and skill is at least zero; otherwise <i>directional</i>. Only confirmed and
+directional verdicts allow a lever story and elasticity-sized test steps. In the run of Figure&nbsp;2 the bid lever
+received [[bid_contrib]] log points from the backbone and [[bid_delta]] from the difference model
+([[bid_pct]]% of the move, label confirm, move skill [[move_skill]]; net explained [[expl_net]]%), giving
+<i>confirmed</i>.</p>
+<p><b>Exact Shapley as the alternative.</b> For a non-linear response the library offers exact Shapley values by
+enumerating all 2<sup><i>n</i></sup> coalitions of lever changes,</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<msub><mi>&#x3C6;</mi><mi>j</mi></msub><mo>=</mo>
+<munder><mo>&#x2211;</mo><mrow><mi>S</mi><mo>&#x2286;</mo><mi>N</mi><mo>&#x2216;</mo><mo>{</mo><mi>j</mi><mo>}</mo></mrow></munder>
+<mfrac><mrow><mo>|</mo><mi>S</mi><mo>|</mo><mo>!</mo><mo>&#x2009;</mo><mo>(</mo><mi>n</mi><mo>&#x2212;</mo><mo>|</mo><mi>S</mi><mo>|</mo><mo>&#x2212;</mo><mn>1</mn><mo>)</mo><mo>!</mo></mrow><mrow><mi>n</mi><mo>!</mo></mrow></mfrac>
+<mo>[</mo><mi>f</mi><mo>(</mo><mi>S</mi><mo>&#x222A;</mo><mo>{</mo><mi>j</mi><mo>}</mo><mo>)</mo><mo>&#x2212;</mo><mi>f</mi><mo>(</mo><mi>S</mi><mo>)</mo><mo>]</mo>
+</mrow></math></div><div class="n">(7)</div></div>
+<p>where <i>f</i>(<i>S</i>) is the model's prediction with the levers in <i>S</i> at their comparison means and the
+rest at baseline. It is limited to 18 levers and ships with a small numpy-only gradient-boosted tree model [29]. The
+values sum to the <i>model's</i> predicted change, not the observed one; the gap is reported as a residual.</p>
+
+<h2>5&ensp;Budget and saturation</h2>
+<p>A campaign is <i>capped</i> when it has at least 7 active days and spends at least 90% of its daily budget on at
+least 60% of them. Whether to raise a capped budget depends on what the <i>next</i> unit of spend returns, not on
+the average. The library fits, per entity, a two-parameter concave curve through the origin to about 90 daily points:</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<mtext>sales</mtext><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo><mi>b</mi><mo>&#x2009;</mo><mi>ln</mi><mo>&#x2061;</mo>
+<mrow><mo>(</mo><mn>1</mn><mo>+</mo><mfrac><mi>x</mi><mi>&#x3B8;</mi></mfrac><mo>)</mo></mrow><mo>,</mo>
+<mspace width="1.2em"/><mi>m</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo>
+<mfrac><mrow><mi>d</mi><mo>&#x2009;</mo><mtext>sales</mtext></mrow><mrow><mi>d</mi><mi>x</mi></mrow></mfrac><mo>=</mo>
+<mfrac><mi>b</mi><mrow><mi>&#x3B8;</mi><mo>+</mo><mi>x</mi></mrow></mfrac><mo>,</mo>
+<mspace width="1.2em"/><mi>m</mi><mo>(</mo><msup><mi>x</mi><mo>*</mo></msup><mo>)</mo><mo>=</mo><mn>1</mn><mo>&#x21D4;</mo>
+<msup><mi>x</mi><mo>*</mo></msup><mo>=</mo><mi>b</mi><mo>&#x2212;</mo><mi>&#x3B8;</mi>
+</mrow></math></div><div class="n">(8)</div></div>
+<p>Here <i>x</i> is daily spend and <i>m</i> the marginal ROAS. For fixed &theta; the best <i>b</i> is a closed-form
+ratio, so fitting is a one-dimensional search over &theta; (a log grid refined by golden section) and is
+deterministic. A fit is refused, with a reason code, for fewer than 21 spending days, a spend coefficient of
+variation under 0.15, no positive spend-sales correlation, a level shift confounded with time, or an in-sample
+R&sup2; under 0.05. Only fits with R&sup2; of at least 0.3 may block a raise or set a ceiling. A capped campaign
+never varies its spend, so its own curve is usually refused; an account-pooled curve may then lend a marginal ROAS
+but never a ceiling.</p>
+<p>The gate (Figure&nbsp;3) is then: a raise is blocked when the marginal at the cap is below 0.9, held when it is
+below 1.0, and otherwise sized as a range of 1.3 to 2.0 times the cap whose upper end is clamped to <i>x</i>*. The
+bar is a marginal return of one sales unit per spend unit; with the default economics this equals the breakeven
+ROAS, but unlike the average-ROAS bars it is not rescaled when an account sets a different breakeven. An ordered
+table turns the probe into one verb. In order: ended campaign (no action), unknown ROAS (investigate tracking; never
+raise blind), operator schedule mistaken for exhaustion, availability below the block line, at least 40% of spend
+below breakeven (fix the bleed first), the marginal gate, organic share of at least 70%, and only then a raise;
+ROAS between breakeven and twice breakeven gets &ldquo;hold and monitor&rdquo;, below breakeven
+&ldquo;tighten&rdquo;.</p>
+
+<figure>[[fig_saturation]]
+<figcaption><b>Figure 3.</b> The saturation curve and the raise gate, from a fit made by the library on 90 seeded synthetic
+points drawn from a planted curve with multiplicative noise (experiment G). The orange point is where the fitted
+marginal ROAS equals one; the blue band is the raise range the library returns for a cap of 8,000, with its upper
+end clamped to that point.</figcaption></figure>
+
+<p><b>Three money estimators.</b> A currency figure is put on a budget action in three ways: a stake with expected
+value from average ROAS and a success probability; the difference of two points on the fitted curve; and a
+finite-difference marginal from the entity's high-spend against low-spend days. They share no model and can give
+three different numbers for the same raise. The library does not reconcile them. Each figure carries an
+<code>estimator</code> label, and a comparison function returns all three with <code>reconciled: False</code>.</p>
+
+<h2>6&ensp;CPM per position, the bid-agent audit and overpay hypotheses</h2>
+<p><b>CPM per observed position.</b> Rows are bucketed by observed ad position and each bucket's CPM is computed from
+its own spend and impressions, for two windows. Only positions at which the ad was actually seen are shown; nothing
+is interpolated. A four-way classifier explains a keyword's CPM rise above 5% with first match winning:
+<i>bought position</i> (position improved by 0.3 slots or own ad share rose 5 points), <i>rival pressure</i> (a
+rival's ad share rose 3 points), <i>worse spot</i> (position worsened by 0.3 slots), else <i>auction price</i>.</p>
+<p><b>Bid-agent audit.</b> Some advertisers run a position-targeting bidder, a closed loop that reads the ad's
+position and moves the bid to hold a target range under a ceiling,
+ceiling = base bid &times; (1 + <i>g</i>/100) for a guardrail percentage <i>g</i>. From the bidder's decision log the
+audit computes, per rule set, the share of decisions at the ceiling (<i>cap</i>), the share that reached the target
+(<i>hit</i>) and the share in which the position was found at all (<i>seen</i>). A rule set is flagged <i>blind</i>
+when seen is under 60%, and <i>hot</i> when it is not blind, capped on at least 30% of decisions and hitting on fewer
+than half. Rates are decision-weighted, and a counter that the log does not carry stays unknown instead of being
+treated as zero.</p>
+<p><b>Three overpay hypotheses.</b> For one day and a keyword list, each campaign&nbsp;&times;&nbsp;keyword&nbsp;&times;&nbsp;geo
+row is tested independently. <i>H1, the bidder is not optimising</i>: blind; better than target on at least half the
+decisions without a bid cut; pinned at the ceiling; or a bid range under 2% of its median over at least ten decisions.
+<i>H2, our own bid is our floor</i>: under second-price rules the next bidder beneath sets the price, so if that
+bidder is the advertiser's own second campaign on the same keyword and geo, bidding at least 80% of the row's CPM,
+the advertiser sets its own price. H2 runs only when the platform profile declares a second-price auction and bids
+quoted per thousand impressions, and says so when skipped. <i>H3, CPM is high for the position</i>: CPM above 1.25
+times the median of the advertiser's own rows in the same position band that day, with at least three rows.</p>
+
+<h2>7&ensp;The action layer</h2>
+<p><b>Rule families.</b> Eight families are pure functions from an aggregated context to candidate <i>action
+cards</i>: efficiency (budget cuts and raises, keyword pauses), growth, defense, bid, experiment, share-of-voice gap,
+geo, and collision (two own campaigns bidding one keyword in the same auction). A card states family, lever type,
+direction, the change, the trigger sentence, the evidence numbers and a <i>stake</i> in currency. Families neither
+veto nor rank. Three rule profiles select which rules run: <i>classic</i> judges against breakeven multiples,
+<i>marginal</i> also re-sizes budget cards on the finite-difference marginal, and <i>verdict</i> judges each keyword
+and keyword-led campaign against the average ROAS of its role bucket, floored at breakeven.</p>
+<p><b>Pipeline.</b> The order is fixed. A <i>holdout</i> is drawn first: an entity is held when the first eight hex
+digits of SHA-1(<i>entity&nbsp;id</i>|<i>period</i>), modulo 100, fall below 15, which is stable within a month and
+rotates after it; held entities receive no cards and are listed on the plan as a standing comparison group (the list can be passed as the control of the difference-in-differences read in Section&nbsp;8; the library does not make that comparison on its own). Dead entities are removed.
+Three vetoes follow: an entity under a running experiment, a raise on an entity that is not budget-bound or whose
+amounts cannot be stated, and a lever that the entity's ad type does not have. Then the conflict table, confidence
+and expected value, one operator-stated run check (a ROAS floor or a spend ceiling; any other check is recorded as
+not machine-enforced), an equity gate that stops cuts on a brand-carrying entity while share is being lost, and
+per-family caps applied last so that a vetoed card never uses a slot. A global cap of 25 pending cards keeps a plan
+reviewable in one sitting.</p>
+<p><b>Conflict table and abstention.</b> Duplicates are merged, keeping the card of the highest-priority family.
+For bid cards on one term, the card with more evidence spend wins. For budget-grain contradictions on one entity (a
+raise against a cut or a pausing experiment) the winner is the family with the highest fixed priority (Figure&nbsp;4).
+Cards on the opposing side are marked superseded and kept on record, unless one of them carries a stake of more than
+three times the winner's. In that case the table abstains: every card in the group becomes a <i>tension group</i> in
+which a human may apply exactly one. Keyword and bid cards never enter this table; a budget cut, keyword pauses and a
+bid move on one entity are treated as one sequence and ordered into waves (cuts first, then bids and experiments,
+then raises) so that outcomes remain attributable.</p>
+
+<figure>[[fig_conflict]]
+<figcaption><b>Figure 4.</b> Resolution of a budget-grain contradiction. The lower strip is measured: with the
+default valve of 3, the table decides up to a stake ratio of exactly 3 and abstains above it.</figcaption></figure>
+
+<p><b>Confidence.</b> Confidence is a bounded sum of labelled parts, clamp(40&nbsp;+&nbsp;&Sigma;&nbsp;parts,&nbsp;25,&nbsp;90):
+evidence window length (+15 or +8), spend depth (up to +10), one clarity term by card type (for a budget card, up to
++15 by distance of ROAS from breakeven), availability penalties, a penalty of 10 for an entity under 14 days old, and,
+once a family has at least five paired outcomes, up to &plusmn;10 from its realised win rate and up to &plusmn;8 from
+precedent on the same entity. The parts are stored on the card. Expected value per day is an estimated daily effect
+times a success probability, 0.5 until five outcomes exist; figures that are market-opportunity estimates are tagged
+so that they never rank ahead of money actually moved.</p>
+<p><b>Typed verdicts.</b> Finally every card passes an ordered gate stack, the <i>verdict spine</i>, and leaves with
+a <i>state</i> and reason code. The stages, in order, with the first claim winning: integrity (contaminated cohorts
+and placeholder budgets), lifecycle (no cut within 5 days of launch), evidence (under 1,000 window impressions),
+identity (a discount swing of 8 points holds media verdicts), action lock (one open action per entity for 7 days),
+automation (a lever owned by an automation is handed to a human), risk bars, terminals. The states are ACT (ship),
+OBSERVE (the read is not trustworthy yet), HOLD (a time-bound condition must pass), ESCALATE (a human must decide),
+and NO-ACTION (decided elsewhere, such as a conflict loser). Risk bars scale the confidence required with the cost of
+being wrong: 25 for a watch, 45 for a bid change, 55 for a budget raise, 65 for any cut, plus 10 while the whole
+book is under 21 days old. Before the gates, cards are reshaped toward the cheapest reversible lever (a keyword pause
+becomes a 25% bid cut with a re-read after 5 days; a raise is trimmed to 25% steps), and sweeps add cards for things
+the families cannot see, such as a profitable campaign that stopped serving or spend on an ad type with no attributed
+sales. An ACT that cannot fill its required fields degrades to OBSERVE.</p>
+
+<h2>8&ensp;The feedback loop</h2>
+<p><b>Ledger.</b> When a plan is saved, the ledger writes one row per card and horizon (7, 14 and 30 days) for
+<i>every</i> card, including vetoed cards and conflict losers. Operators mark cards applied or skipped; a card that
+lost a conflict cannot be marked applied, and re-saving a regenerated plan keeps operator marks. Storage is behind a
+small backend interface with in-memory and SQLite implementations.</p>
+<p><b>Outcome pairing.</b> Once the feed covers a horizon <i>h</i> after the action date, ROAS over the <i>h</i> days
+after is compared with ROAS over the <i>h</i> days before. The expectation is the before-value adjusted for the
+market <i>tide</i>, the ratio of the segment's total sales over the same two windows, damped by a square root because
+ad efficiency does not follow market volume one for one:</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<mtext>expected</mtext><mo>=</mo><msub><mtext>ROAS</mtext><mtext>before</mtext></msub><mo>&#x22C5;</mo>
+<mi>clamp</mi><mo>(</mo><msqrt><mtext>tide</mtext></msqrt><mo>,</mo><mn>0.5</mn><mo>,</mo><mn>2</mn><mo>)</mo>
+</mrow></math></div><div class="n">(9)</div></div>
+<p>A cut is <i>On Track</i> when efficiency holds at 95% of expectation and at least 60% of revenue is kept, otherwise
+<i>Review</i>; a raise is On Track at 85% of expectation, otherwise <i>Off Track</i>. The asymmetry is deliberate: a
+cut that misses still saved the money. Other labels are <i>Too early</i>, <i>No signal</i>, and <i>Unreadable</i>
+when a second action on the same entity landed inside the window. Cards that were not taken are scored as
+counterfactuals (did efficiency go on to fall, as the cut card said it would?), which lets the priority table itself
+be audited. Only On Track, Review and Off Track at the 7-day horizon feed the family win rates used in
+Section&nbsp;7.</p>
+<p><b>Difference-in-differences.</b> For a logged recommendation on an entity, with a window <i>W</i> of at most 14
+days on each side of the issue day:</p>
+<div class="eq"><div class="m"><math display="block"><mrow>
+<mtext>DiD</mtext><mo>=</mo>
+<mo>(</mo><msubsup><mtext>ROAS</mtext><mtext>post</mtext><mtext>treated</mtext></msubsup><mo>&#x2212;</mo><msubsup><mtext>ROAS</mtext><mtext>pre</mtext><mtext>treated</mtext></msubsup><mo>)</mo>
+<mo>&#x2212;</mo>
+<mo>(</mo><msubsup><mtext>ROAS</mtext><mtext>post</mtext><mtext>control</mtext></msubsup><mo>&#x2212;</mo><msubsup><mtext>ROAS</mtext><mtext>pre</mtext><mtext>control</mtext></msubsup><mo>)</mo>
+</mrow></math></div><div class="n">(10)</div></div>
+<p>where the control is every other entity in the account (or a supplied list), always excluding the treated one.
+The read is <i>landed</i> above +0.10 ROAS points, <i>worsened</i> below &minus;0.10, <i>flat</i> between, and
+<i>no-data</i> when it cannot be measured; an unmeasurable read is never called flat. A <i>taken-detection</i> step
+checks the platform change log (or, failing that, spend-share shifts) for evidence that the recommended change was
+actually made. This is a descriptive contrast with a non-randomised control, not an experiment.</p>
+
+<h2>9&ensp;Platform abstraction</h2>
+<p>Nothing platform-specific is hard-coded. A platform is described once by a <code>PlatformProfile</code> and its
+data are converted by an <i>adapter</i> into neutral records. The contract is small:</p>
+<ul>
+<li><b>Required:</b> delivery rows with date, entity id, spend and impressions, and normally sales and units. Rows
+may be at any finer grain (targeting unit, geo, product, hour); repeated keys are summed.</li>
+<li><b>Optional feeds</b>, each unlocking named functions: budget pacing (cap tests, curve, raise sizing), share of
+voice (rival pressure, organic share), shelf (availability and price levers), market sell-out (share and root-cause
+reads), change log (taken-detection), bidder decision log (Section&nbsp;6). A missing feed produces a &ldquo;not
+assessed&rdquo; note, never an error or a silent pass.</li>
+<li><b>Declared semantics:</b> ad types by capability (keyword auction, auto-targeted retargeting with an
+attribution deflator, reach placement with no attributed sales) and the levers each allows; the raw-to-canonical
+status map; whether a position field exists and which direction is better; auction type and bid unit; geo grain and
+long-tail roll-up labels that are never a target; which targeting types are biddable; trading-day hours; and a
+currency scale.</li>
+</ul>
+<p>Money thresholds are written in reference units and multiplied by the currency scale; profitability bars are
+multiples of the effective breakeven. Rules that need a capability the platform lacks abstain: without a position
+field the per-keyword bid rules and position levers are silent, and the self-floor check does not run outside
+second-price auctions. The words &ldquo;keyword&rdquo; and &ldquo;campaign&rdquo; in output mean &ldquo;targeting
+unit&rdquo; and &ldquo;entity&rdquo;; this vocabulary is fixed in the current API.</p>
+
+<h2>10&ensp;Evaluation on synthetic data with planted events</h2>
+<p>No results from real accounts exist for this library, and none are claimed. The evaluation answers a narrower
+question: on data whose ground truth is known by construction, does the library find what was planted, stay silent
+when nothing was, keep its exactness and determinism claims, and run on a differently shaped platform? Everything
+below is produced by one script, <code>docs/paper/experiments.py</code>, with seeds 1 to [[n_seeds]]
+(1 to [[n_dose]] for the dose-response sweep, 1 to [[n_det]] for determinism); the figures use seed 7. To
+reproduce (Python [[python]], numpy [[numpy]]; about four minutes on one core):</p>
+<p class="cmd"><code>pip install -e . &amp;&amp; python docs/paper/experiments.py</code></p>
+<p>Results are written to <code>docs/paper/results.json</code>, from which the tables and figures in this paper are
+generated by <code>docs/paper/build_paper.py</code>.</p>
+<p><b>Worlds.</b> The <i>marketplace</i> world is the library's generator: 90 days, one advertiser, nine campaigns
+on a first-price CPM platform with no clicks, four city geos plus a long-tail bucket, and all feeds
+([[rows_a]] delivery rows per dataset). Impressions and CPM carry lognormal noise, units are Poisson. Five events are
+planted (Table&nbsp;1). The generator and the detectors were written together, so this is a test of plumbing and of
+the thresholds' behaviour near their edges, not an independent benchmark. The <i>second platform</i> is defined
+entirely in <code>examples/custom_platform_adapter.py</code>: 70 days, five line items, a second-price auction,
+clicks, no position field, country geos, orders instead of units, money in micros with amounts about 100 times
+smaller, served minutes instead of an exhaustion time, and only the delivery, entity, targeting and pacing feeds
+([[rows_f]] rows). Two events are planted: a 50% CPM rise on one query and a profitable line item that serves a third
+of the day.</p>
+
+<div class="tblock"><p class="tcap"><b>Table 1.</b> Detection of planted events in the marketplace world, seeds 1&ndash;[[n_seeds]]. &ldquo;Finding&rdquo;
+is from <code>diagnose()</code>; &ldquo;ACT card&rdquo; is a card in state ACT that addresses the event, from
+<code>plan()</code> with the classic profile and the holdout switched off (with the default 15% holdout, an event on
+a held entity gets no card by design).</p>
+[[tbl_detection]]</div>
+
+<p><b>Detection.</b> All five planted events were found in [[n_seeds]] of [[n_seeds]] datasets, with [[extra_a]]
+findings on any other subject. The CPM rise was classified [[cpm_class_a]], matching the planted rival surge. In the
+<i>null world</i>, the same generator with all five events removed, [[null_any]] of [[n_seeds]] datasets produced any
+finding; the only card in those plans was a prompt to justify spend on the reach campaign, which has no attributed
+sales by construction (present in [[null_cards]] plans).</p>
+<p><b>Dose-response.</b> Detection at full size says little about where a detector stops working, so each event was
+re-planted at several sizes (Figure&nbsp;5). The transitions sit where the named thresholds put them. A CPM rise is
+reported above 5%: at a multiplier of 1.05 it was found in [[cpm5]] runs and from 1.08 always. A keyword is called a
+bleeder below ROAS 1: at a true ROAS of exactly 1.0, noise put it under the bar in [[ble1]] runs. The availability
+detector is the least sensitive: a fall to 0.75 on one of four products in one geo, for 21 of the 30 days, was missed
+in every run, because the test is on the geo-level mean across products and requires a fall of 0.05. A single-product
+stock-out can therefore pass unreported at the default setting.</p>
+
+<figure>[[fig_dose]]
+<figcaption><b>Figure 5.</b> Share of [[n_dose]] seeded datasets in which the planted event was reported as a finding,
+against the size at which it was planted (experiment C). The x positions are the tested levels, not a linear scale.
+Partial rates are labelled.</figcaption></figure>
+
+<div class="tblock"><p class="tcap"><b>Table 2.</b> Exactness. Absolute difference between the sum of the parts and the directly computed
+change, over seeds 1&ndash;[[n_seeds]] and two randomised stress sets. Identity residuals are in log points,
+shift-share residuals in units of the blended rate, and the two prior-rate splits in units and currency (totals of
+order 10<sup>4</sup> and 10<sup>7</sup>).</p>
+[[tbl_exact]]</div>
+
+<p><b>Exactness and determinism.</b> Residuals of the log identity and of the ROAS and cost-per-impression
+shift-shares were at most [[maxres]] (Table&nbsp;2). The remaining splits are sums of larger numbers (prices of order
+10<sup>2</sup>, unit totals of order 10<sup>4</sup>, currency totals of order 10<sup>7</sup>) and their absolute
+residuals are correspondingly larger, at most [[maxres_other]]. All of these are floating-point rounding relative to
+the size of the quantity split. Two generations of the same seed gave an identical digest
+of findings, identity table, attribution verdicts, plan id and all cards, and so did a run with every feed's rows
+shuffled (Table&nbsp;3).</p>
+
+<div class="tblock"><p class="tcap"><b>Table 3.</b> Determinism, seeds 1&ndash;[[n_det]].</p>
+[[tbl_determinism]]</div>
+
+<div class="tblock"><p class="tcap"><b>Table 4.</b> The second platform, seeds 1&ndash;[[n_seeds]], run through its adapter with a currency scale of
+0.01 and no change to the library.</p>
+[[tbl_second]]</div>
+
+<p><b>Second platform.</b> Both planted events were found in every run (Table&nbsp;4). The CPM rise was classified
+[[cpm_class_f]], the correct residual class when neither position nor share-of-voice data exist. The diagnosis noted
+that availability was not assessed, since the platform supplies no shelf feed.</p>
+
+<div class="tblock"><p class="tcap"><b>Table 5.</b> Attribution on the campaign that carries the CPM spike, seeds 1&ndash;[[n_seeds]], with and
+without the spike planted. Counts of runs.</p>
+[[tbl_attr]]</div>
+
+<p><b>Attribution.</b> With the spike planted, the attribution verdict was <i>confirmed</i> with bid as the largest
+lever in every run (median share of the move [[bid_share]]%; Table&nbsp;5). In this first-price world the bid rises
+with the CPM, so the model is recovering a planted association. Without the spike the campaign's ROAS moves only by
+noise. The verdict then abstained (<i>unexplained</i>) in [[ws_unexplained]] of [[n_seeds]] runs, but told a lever
+story in [[ws_story]] ([[ws_confirmed]] confirmed, [[ws_directional]] directional) although nothing had been
+planted. The jury reduces but does not remove false stories on pure noise. Table&nbsp;5 also shows two readers
+disagreeing on the same planted event: the layer-1 first read calls it self-inflicted because the bid rose, while
+the CPM classifier calls it rival pressure because a rival's share rose. Both statements are true of the generated
+data, and the library does not reconcile them.</p>
+
+<div class="tblock"><p class="tcap"><b>Table 6.</b> Everything else the plans contained: cards that do not address a planted event, or that address
+one but were not shipped. Holdout off; number of plans out of [[n_seeds]] containing the card.</p>
+[[tbl_cards]]</div>
+
+<p><b>Unplanted actions.</b> Table&nbsp;6 lists every card outside the planted set. Under the classic profile the
+only regular extra is the reach-campaign prompt. The verdict profile acts more: it judges against the role bucket's
+average ROAS, so in the second world it cut the budget of a line item with a median ROAS of [[roas_generic_f]]
+because one outlier lifted the bucket average, and in the marketplace world it cut the bid on the brand keyword whose
+conversion had fallen because of the planted availability drop, a supply problem that a bid cut does not fix (that
+profile runs with the supply gate off). With three or four entities per bucket a relative bar is fragile; we report
+this as a measured weakness of that profile on small accounts.</p>
+
+<div class="tblock"><p class="tcap"><b>Table 7.</b> Curve recovery (experiment G). 90 points per seed with spend uniform on [1,500, 14,000] and sales
+from a planted curve (<i>b</i> = 20,000, &theta; = 4,000, so <i>b</i> &minus; &theta; = [[g_true_sat]]) with
+multiplicative lognormal noise; seeds 1&ndash;[[n_seeds]].</p>
+[[tbl_curve]]</div>
+
+<p><b>Curve recovery.</b> With well-spread spend the fit recovers the marginal ROAS inside the observed range to a
+few percent, but the point where it reaches one lies beyond the data and is less stable (Table&nbsp;7): at the
+highest noise level the worst case was off by more than the true value. This supports using the curve as a gate with
+a noise margin and clamping raises, and argues against quoting the ceiling as a forecast.</p>
+
+<h2>11&ensp;Limitations and threats to validity</h2>
+<ul>
+<li><b>Thresholds are judgment defaults.</b> The numeric thresholds among the [[n_cfg_fields]] configuration fields
+are round numbers chosen by judgment. None is calibrated or back-tested here. The dose-response results show that outcomes near a threshold
+depend on it directly; the defaults should be treated as starting points and overridden per account.</li>
+<li><b>Synthetic evaluation only.</b> The generator encodes the same view of the world as the rules, and was written
+alongside them. Finding planted events shows that the plumbing is sound and that the thresholds behave as stated. It
+shows nothing about real accounts, where events overlap, feeds are late or restated, and noise is not lognormal. We
+make no claim about uplift, accuracy or scale in practice.</li>
+<li><b>Attribution is observational.</b> The verdict &ldquo;confirmed&rdquo; means that two regressions on the same
+observational data agree on the largest lever and that the difference model is no worse than persistence. It is not a
+causal estimate. Levers move together, the advertiser's own actions respond to outcomes, and Section&nbsp;10 shows
+lever stories on pure noise in [[ws_story]] of [[n_seeds]] runs. Imputation medians use both windows.</li>
+<li><b>The three money estimators are not reconciled.</b> The same raise can carry three figures. They are labelled,
+never averaged, and no evidence is offered that any of them predicts realised revenue.</li>
+<li><b>The saturation curve is correlational.</b> It has no demand controls, uses same-day attribution with no
+carry-over, reports in-sample fit without intervals, and extrapolates by functional form beyond observed spend. A
+capped campaign cannot identify its own curve. The marginal bar is a literal one and ignores a configured
+breakeven.</li>
+<li><b>The self-floor check assumes second-price pricing.</b> H2 assumes that the next bid beneath sets the price
+paid. This has not been verified against billed prices on any platform, and reserve prices, quality adjustments or
+hybrid auction rules would break it. H3 uses the advertiser's own rows as the reference, so it detects inconsistency
+between the advertiser's geos and campaigns, not overpayment against the market. &ldquo;Clearing bids&rdquo; from a
+bidder log are bids set, not prices paid.</li>
+<li><b>Fixed order decides.</b> Several components are first-match cascades (the raise verb, the CPM classifier, the
+gate stack, the root-cause list). The first condition to fire names the cause; co-occurring causes are not weighed
+against each other, and two readers may describe one event differently (Table&nbsp;5).</li>
+<li><b>Relative bars need a population.</b> The verdict profile's bucket-average bar over-acts on small accounts
+(Table&nbsp;6).</li>
+<li><b>The feedback loop is untested end to end.</b> Outcome labels, win rates and the difference-in-differences read
+are unit-tested but were not exercised by the single-shot experiments here, because that needs operator decisions
+and later data. By default the control group of that read is the rest of the account, which is not randomised; the hash-drawn holdout is drawn and reported but no holdout-against-treated comparison is computed for the caller. The tide adjustment is a
+heuristic.</li>
+<li><b>Scope.</b> One advertiser at a time, daily grain for most functions, and platform data are trusted as
+delivered; restatement detection exists but does not correct anything. Attributed sales are taken at the platform's
+definition, corrected only by a fixed deflator on auto-targeted types.</li>
+</ul>
+
+<h2>12&ensp;Conclusion</h2>
+<p>Under CPM billing, ROAS factors exactly into conversions per impression, price and cost per impression, and that
+identity is enough to anchor a diagnosis that needs no click data. Around it we built a library in which the exact
+parts are kept exact, the estimated parts are labelled and gated by an agreement test, contradictions are resolved by
+a fixed table that can abstain, and every action leaves with a typed state and the numbers behind it. On synthetic
+data the library found what was planted, stayed silent when nothing was, and reproduced its output exactly; the same
+experiments exposed a detector that misses moderate single-product stock-outs, lever stories told on noise, and a
+rule profile that over-acts on small accounts. The method's value on real accounts is an open question that only
+measured outcomes can answer, and the ledger and holdout are there so that they can be measured.</p>
+
+<h2>References</h2>
+<div class="refs">
+<p>[1] L. S. Shapley. A value for n-person games. In <i>Contributions to the Theory of Games II</i>, Annals of Mathematics Studies 28, Princeton University Press, 1953, 307&ndash;317.</p>
+<p>[2] S. M. Lundberg and S.-I. Lee. A unified approach to interpreting model predictions. <i>Advances in Neural Information Processing Systems</i> 30, 2017.</p>
+<p>[3] E. &Scaron;trumbelj and I. Kononenko. Explaining prediction models and individual predictions with feature contributions. <i>Knowledge and Information Systems</i> 41(3), 2014, 647&ndash;665.</p>
+<p>[4] X. Shao and L. Li. Data-driven multi-touch attribution models. <i>Proc. 17th ACM SIGKDD Conference on Knowledge Discovery and Data Mining</i>, 2011, 258&ndash;264.</p>
+<p>[5] B. Dalessandro, C. Perlich, O. Stitelman and F. Provost. Causally motivated attribution for online advertising. <i>Proc. 6th International Workshop on Data Mining for Online Advertising and Internet Economy (ADKDD)</i>, 2012.</p>
+<p>[6] E. S. Dunn. A statistical and analytical technique for regional analysis. <i>Papers and Proceedings of the Regional Science Association</i> 6, 1960, 97&ndash;112.</p>
+<p>[7] R. Oaxaca. Male-female wage differentials in urban labor markets. <i>International Economic Review</i> 14(3), 1973, 693&ndash;709.</p>
+<p>[8] B. W. Ang. Decomposition analysis for policymaking in energy: which is the preferred method? <i>Energy Policy</i> 32(9), 2004, 1131&ndash;1139.</p>
+<p>[9] K. Sato. The ideal log-change index number. <i>Review of Economics and Statistics</i> 58(2), 1976, 223&ndash;228.</p>
+<p>[10] Y. O. Vartia. Ideal log-change index numbers. <i>Scandinavian Journal of Statistics</i> 3(3), 1976, 121&ndash;126.</p>
+<p>[11] S. Broadbent. One way TV advertisements work. <i>Journal of the Market Research Society</i> 21(3), 1979, 139&ndash;166.</p>
+<p>[12] Y. Jin, Y. Wang, Y. Sun, D. Chan and J. Koehler. Bayesian methods for media mix modeling with carryover and shape effects. Google Research technical report, 2017.</p>
+<p>[13] D. Chan and M. Perry. Challenges and opportunities in media mix modeling. Google Research technical report, 2017.</p>
+<p>[14] W. Vickrey. Counterspeculation, auctions, and competitive sealed tenders. <i>Journal of Finance</i> 16(1), 1961, 8&ndash;37.</p>
+<p>[15] R. B. Myerson. Optimal auction design. <i>Mathematics of Operations Research</i> 6(1), 1981, 58&ndash;73.</p>
+<p>[16] B. Edelman, M. Ostrovsky and M. Schwarz. Internet advertising and the generalized second-price auction: selling billions of dollars worth of keywords. <i>American Economic Review</i> 97(1), 2007, 242&ndash;259.</p>
+<p>[17] H. R. Varian. Position auctions. <i>International Journal of Industrial Organization</i> 25(6), 2007, 1163&ndash;1178.</p>
+<p>[18] C. Perlich, B. Dalessandro, R. Hook, O. Stitelman, T. Raeder and F. Provost. Bid optimizing and inventory scoring in targeted online advertising. <i>Proc. 18th ACM SIGKDD Conference on Knowledge Discovery and Data Mining</i>, 2012, 804&ndash;812.</p>
+<p>[19] W. Zhang, S. Yuan and J. Wang. Optimal real-time bidding for display advertising. <i>Proc. 20th ACM SIGKDD Conference on Knowledge Discovery and Data Mining</i>, 2014, 1077&ndash;1086.</p>
+<p>[20] H. Cai, K. Ren, W. Zhang, K. Malialis, J. Wang, Y. Yu and D. Guo. Real-time bidding by reinforcement learning in display advertising. <i>Proc. 10th ACM International Conference on Web Search and Data Mining</i>, 2017, 661&ndash;670.</p>
+<p>[21] H. Choi, C. F. Mela, S. R. Balseiro and A. Leary. Online display advertising markets: a literature review and future directions. <i>Information Systems Research</i> 31(2), 2020, 556&ndash;575.</p>
+<p>[22] C. Rudin. Stop explaining black box machine learning models for high stakes decisions and use interpretable models instead. <i>Nature Machine Intelligence</i> 1, 2019, 206&ndash;215.</p>
+<p>[23] R. A. Lewis and J. M. Rao. The unfavorable economics of measuring the returns to advertising. <i>Quarterly Journal of Economics</i> 130(4), 2015, 1941&ndash;1973.</p>
+<p>[24] T. Blake, C. Nosko and S. Tadelis. Consumer heterogeneity and paid search effectiveness: a large-scale field experiment. <i>Econometrica</i> 83(1), 2015, 155&ndash;174.</p>
+<p>[25] B. R. Gordon, F. Zettelmeyer, N. Bhargava and D. Chapsky. A comparison of approaches to advertising measurement: evidence from big field experiments at Facebook. <i>Marketing Science</i> 38(2), 2019, 193&ndash;225.</p>
+<p>[26] D. Card and A. B. Krueger. Minimum wages and employment: a case study of the fast-food industry in New Jersey and Pennsylvania. <i>American Economic Review</i> 84(4), 1994, 772&ndash;793.</p>
+<p>[27] J. D. Angrist and J.-S. Pischke. <i>Mostly Harmless Econometrics: An Empiricist's Companion</i>. Princeton University Press, 2009.</p>
+<p>[28] A. E. Hoerl and R. W. Kennard. Ridge regression: biased estimation for nonorthogonal problems. <i>Technometrics</i> 12(1), 1970, 55&ndash;67.</p>
+<p>[29] J. H. Friedman. Greedy function approximation: a gradient boosting machine. <i>Annals of Statistics</i> 29(5), 2001, 1189&ndash;1232.</p>
+</div>
+
+<h2>Appendix A&ensp;Threshold table</h2>
+<p class="small">Table&nbsp;A1 is generated from the library's configuration dataclasses by
+<code>docs/paper/build_paper.py</code>: defaults are read with <code>dataclasses.fields</code> and the rationale is
+the comment written next to each field in the source. It lists the [[n_thr]] thresholds this paper refers to, out of
+[[n_cfg_fields]] fields in [[n_cfg_cls]] configuration and platform-profile dataclasses. Money amounts are in reference units and are
+multiplied by the account's currency scale before use.</p>
+<p class="tcap"><b>Table A1.</b> Selected thresholds and their defaults in version [[version]].</p>
+[[tbl_thresholds]]
+
+</body>
+</html>

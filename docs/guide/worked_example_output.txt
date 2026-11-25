@@ -1,0 +1,177 @@
+
+==============================================================================
+INPUT  the feeds (seed 7)
+==============================================================================
+  perf               7000 rows
+  entities              9 rows
+  targeting_units      15 rows
+  products              9 rows
+  market             5040 rows
+  offtake            3150 rows
+  shelf              4050 rows
+  budget_days         680 rows
+  change_events         2 rows
+  one PerfRow:       date=2026-01-01, entity_id='cmp-brand', spend=896.13, impressions=7282.0, sales=8640.0, units=36.0, advertiser_id='adv-001', targeting_unit='ownbrand bar', targeting_type='keyword', geo='geo-north', product_id='sku-a1', bid=129.54, position=1.48, ad_type='keyword_listing', status='ACTIVE', indirect_sales=432.0, new_users=4.0, entity_name='Brand defence', segment='snack-bars'
+  one BudgetDayRow:  date=2026-01-01, entity_id='cmp-brand', daily_budget=9800.0, spend=5248.22, sales=44640.0, impressions=46343.0, live_minutes=960.0, expected_live_minutes=960.0, platform_held=False, status='ACTIVE'
+
+==============================================================================
+STEP 1  identity: which of conversion, price or CPM moved
+==============================================================================
+  windows: current 2026-03-02 .. 2026-03-31, prior 2026-01-31 .. 2026-03-01
+  account ROAS 3.0433 -> 2.7945   ln ratio -0.0853
+    icr1k      1.242 ->     1.196   signed log-points -0.0376   share of move +44.1%
+    asp      258.416 ->   266.829   signed log-points +0.0320   share of move -37.6%
+    cpm      105.440 ->   114.184   signed log-points -0.0797   share of move +93.4%
+    sum of log-points -0.0853   exact=True
+  first read: code=self_inflicted_bid  bid change +18.8%  -> CPM rose and the bid was raised: self-inflicted
+  cmp-generic: ln ratio -0.2188 = icr1k +0.0231  asp -0.0062  cpm -0.2356
+
+==============================================================================
+STEP 2  attribution: which lever (cmp-generic)
+==============================================================================
+  verdict=confirmed  (both models agree on the largest lever and day-to-day skill is non-negative)
+  confidence={'level': 'High', 'days': 60, 'imputed': 0.0, 'skill': 0.3530219346693268}
+  explained: net 99.9%  gross 102.8%  residual 0.1%  basis=move
+  lever                       share  level model  day-to-day  jury     from -> to
+  bid                           86%      -0.1885     -0.2046  confirm  137.336 -> 194.957
+  own_paid_sov                  13%      -0.0284     -0.0484  confirm  0.350 -> 0.303
+  log_category_impressions       2%      -0.0044     -0.0052  None     13.981 -> 14.049
+  own_organic_sov               -1%       0.0018      0.0045  None     0.301 -> 0.300
+  comp_availability             -1%       0.0013      0.0013  None     0.901 -> 0.900
+  own_availability               0%      -0.0005      0.0014  None     0.950 -> 0.947
+  position                       0%       0.0001     -0.0003  None     3.502 -> 3.500
+  price_gap                      0%       0.0000      0.0000  None     1.311 -> 1.311
+  not modelled: competitor_share, own_discount (folded), comp_discount (folded)
+  sizing of the top lever: bid down 10% -> ROAS +0.19 (estimator lever-elasticity)
+  recommendation: Cap bids on protein bar, healthy snack  [Bid / CPM inflation]
+  recommendation: Raise bids on energy bar  [Paid share of voice slipping]
+  recommendation: Fix availability on (no target named)  [Own availability drag]
+
+==============================================================================
+STEP 3  budget, keyword and CPM checks
+==============================================================================
+  budget probe cmp-winner: cap 6,350/day, avg spend 6,350, capped 30 of 30 days, exhausts at hour 11.3
+    marginal ROAS at the cap 2.80 from the account-pooled curve (r2 0.34); own curve not usable: daily spend barely varies (cv 0.00002)
+    raise verdict: code=top_up  verb='Top up daily budget'  range 8,255-12,700/day  estimator=saturation_curve
+  CPM move 'protein bar': 149.2 -> 241.5 (+62%)  kind=rival pressure  position delta -0.05  own SOV delta -0.12  rival rival-b gain +0.23
+  keyword cut: 'rivalb bar' role=competitor spend 142,904 ROAS 0.34 verdict=cut  (ROAS 0.34 is below 1.00 on material spend (142904 > floor 51215))
+  finding [cpm_rise] from cpm.explain: CPM on 'protein bar' rose 62% (149 -> 242): rival pressure
+  finding [availability_drop] from geo.drill: availability of sku-a2 in geo-south fell 0.95 -> 0.58
+  finding [budget_bound_winner] from budget.probe: cmp-winner is budget-bound at ROAS 6.30: top up daily budget (range 8,255-12,700 per day)
+  finding [bleeding_keyword] from keywords.recommend: 'rivalb bar' (competitor) returns ROAS 0.34 on 142,904 spend: cut
+  finding [own_collision] from actions.families.collision: 2 own campaigns bid 'energy bar' in 4 auction(s); keep it on cmp-generic, 130,292 sits on the weaker one(s)
+
+==============================================================================
+STEP 4  rule families propose cards (before any gate)
+==============================================================================
+  fb2bbce3fcb4         efficiency-scale budget   Increase Budget +50% (6,350 -> 9,525)          [cmp-winner]  status=pending wave=- conf=None lane=-
+      why: ROAS 6.30x on 190,500 spend and the daily budget runs out early (utilisation 100%)
+      do:  raise 50%; hold if marginal ROAS decays below 2.00x   stake 476,249
+  31a3e534d542         efficiency-cut   keyword  Pause / Negative Keywords                      [cmp-conquest: rivalb bar]  status=pending wave=- conf=None lane=-
+      why: 1 keyword(s) lose money: rivalb bar (0.34x)
+      do:  negative-match them on this campaign; keep any conquest term at or above 1.50x   stake 93,944
+  ce0bec429c10         bid              bid      Hold Bid Under Pressure                        [cmp-generic: protein bar]  status=pending wave=- conf=None lane=-
+      why: CPM on 'protein bar' rose more than 10% in 4 geos; ROAS 2.67x still clears 1.00x
+      do:  hold the bid; the term can afford the fight   stake 45,427
+  ae38b8400ebc         collision        keyword  Resolve Keyword Collision                      [cmp-overlap: energy bar]  status=pending wave=- conf=None lane=-
+      why: 2 own campaigns bid 'energy bar' in geo-north; 130,292 sits on the weaker ones
+      do:  keep it on cmp-generic; negative-match it on the overlapping campaigns in geo-north only   stake 19,544
+
+==============================================================================
+STEP 5  the pipeline resolves, scores and caps
+==============================================================================
+  -- default (15% holdout): plan 04d1f1d752c5, 3 actionable of 3 cards, holdout cmp-brand, cmp-conquest, cmp-reach
+     pipeline gates fired: none   spine: staircase 1
+     fb2bbce3fcb4         efficiency-scale budget   Increase Budget +25% (6,350 -> 7,938)          [cmp-winner]  status=pending wave=3 conf=79 lane=ACT
+     ce0bec429c10         bid              bid      Hold Bid Under Pressure                        [cmp-generic: protein bar]  status=pending wave=2 conf=73 lane=ACT
+     ae38b8400ebc         collision        keyword  Resolve Keyword Collision                      [cmp-overlap: energy bar]  status=pending wave=1 conf=73 lane=ACT
+  -- holdout off: plan aede76cdf48c, 5 actionable of 5 cards
+     pipeline gates fired: none   spine: bid_ladder 1, justify_or_kill 1, staircase 1
+     fb2bbce3fcb4         efficiency-scale budget   Increase Budget +25% (6,350 -> 7,938)          [cmp-winner]  status=pending wave=3 conf=79 lane=ACT
+     31a3e534d542         efficiency-cut   bid      Decrease Bid (first response) -25%             [cmp-conquest: rivalb bar]  status=pending wave=1 conf=67 lane=ACT
+     ce0bec429c10         bid              bid      Hold Bid Under Pressure                        [cmp-generic: protein bar]  status=pending wave=2 conf=73 lane=ACT
+     ae38b8400ebc         collision        keyword  Resolve Keyword Collision                      [cmp-overlap: energy bar]  status=pending wave=1 conf=73 lane=ACT
+     untracked-cmp-reach  sov-gap          watch    Justify or Kill (untracked spend)              [cmp-reach]  status=pending wave=- conf=55 lane=ACT
+  -- holdout off + run check ROAS >= 7: plan c65f6064631f, 4 actionable of 5 cards
+     pipeline gates fired: guardrail 1   spine: bid_ladder 2, justify_or_kill 1
+     note: check roas >= 7.0 (enforced on scale-ups)
+     31a3e534d542         efficiency-cut   bid      Decrease Bid (first response) -25%             [cmp-conquest: rivalb bar]  status=pending wave=1 conf=67 lane=ACT
+     8144fa9619bf         bid              bid      Yield the Inflated Auction -15%                [cmp-generic: protein bar]  status=pending wave=1 conf=73 lane=ACT
+     360d1948f1b1         efficiency-cut   bid      Decrease Bid (first response) -25%             [cmp-overlap: energy bar]  status=pending wave=1 conf=67 lane=ACT
+     fb2bbce3fcb4         efficiency-scale budget   Increase Budget +50% (6,350 -> 9,525)          [cmp-winner]  status=vetoed wave=- conf=79 lane=NO-ACTION(gate)
+         veto: guardrail: ROAS 6.30 is below the run floor 7.00
+     untracked-cmp-reach  sov-gap          watch    Justify or Kill (untracked spend)              [cmp-reach]  status=pending wave=- conf=55 lane=ACT
+  confidence of 'Increase Budget' on cmp-winner: 40 + 15 (30-day evidence window) + 9 (spend depth) + 15 (effect clarity: far from breakeven) = 79
+  expected value: est 19,996/day x p 0.5 = 9,998/day  kind=money estimator=average_roas
+
+==============================================================================
+STEP 6  verdicts
+==============================================================================
+  -- classic: {'ACT': 5}
+     ACT                    Increase Budget                    [cmp-winner]  asked +50%, shipped +25%
+     ACT                    Decrease Bid (first response)      [cmp-conquest]  ladder=bid-down-first
+     ACT                    Hold Bid Under Pressure            [cmp-generic]
+     ACT                    Resolve Keyword Collision          [cmp-overlap]
+     ACT                    Justify or Kill (untracked spend)  [cmp-reach]
+  -- verdict rule profile: {'ACT': 8, 'NO-ACTION': 1}
+     ACT                    Increase Budget                    [cmp-winner]  asked +50%, shipped +25%
+     NO-ACTION(conflict)    Pause / Negative Keywords          [cmp-conquest]
+     ACT                    Decrease Budget                    [cmp-overlap]
+     ACT                    Decrease Bid (first response)      [cmp-conquest]
+     ACT                    Hold Bid Under Pressure            [cmp-generic]
+     ACT                    Resolve Keyword Collision          [cmp-overlap]
+     ACT                    Decrease Bid (first response)      [cmp-overlap]
+     ACT                    Decrease Bid (first response)      [cmp-brand]
+     ACT                    Justify or Kill (untracked spend)  [cmp-reach]
+
+==============================================================================
+STEP 7  the ledger scores what happened
+==============================================================================
+  plan 7ec902ece758 built on data to 2026-03-17; every actionable card marked applied on 2026-03-18
+     fb2bbce3fcb4         Increase Budget                    [cmp-winner]  mark applied -> True
+     31a3e534d542         Decrease Bid (first response)      [cmp-conquest]  mark applied -> True
+     ce0bec429c10         Hold Bid Under Pressure            [cmp-generic]  mark applied -> True
+     ae38b8400ebc         Resolve Keyword Collision          [cmp-overlap]  mark applied -> True
+     untracked-cmp-reach  Justify or Kill (untracked spend)  [cmp-reach]  mark applied -> True
+  pair_outcomes(today=2026-03-22): paired 0, deferred 0, {}
+  pair_outcomes(today=2026-03-25): paired 5, deferred 0, {'On Track': 3, 'Review': 1, 'No signal': 1}
+  family           entity        dir     h  ROAS before  ROAS after   tide  outcome
+  efficiency-cut   cmp-conquest  down    7        1.066       1.026  1.027  On Track
+  collision        cmp-overlap   down    7        1.757       1.656  1.027  Review
+  bid              cmp-generic   none    7        2.770       2.874  1.027  On Track
+  efficiency-scale cmp-winner    up      7        5.248       5.585  1.027  On Track
+  sov-gap          cmp-reach     none    7        0.000       0.000  1.000  No signal
+  win rates (family: (rate, n)): {'efficiency-cut': (1.0, 1), 'collision': (0.0, 1), 'bid': (1.0, 1), 'efficiency-scale': (1.0, 1)}
+  note: the synthetic data does not react to an 'applied' mark, so these labels describe
+        the untreated trajectory of each entity; they show the mechanics only.
+
+==============================================================================
+EVALUATION  planted-event recovery, seeds 0..19, default configuration
+==============================================================================
+  seed  0: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed  1: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed  2: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed  3: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed  4: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed  5: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed  6: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed  7: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed  8: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed  9: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 10: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 11: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 12: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 13: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 14: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 15: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 16: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 17: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 18: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+  seed 19: cpm_spike=found  availability_drop=found  budget_capped_winner=found  bleeding_keyword=found  own_overlap=found  | other findings 0
+
+  cpm_spike              found on its planted target in 20 of 20 seeds
+  availability_drop      found on its planted target in 20 of 20 seeds
+  budget_capped_winner   found on its planted target in 20 of 20 seeds
+  bleeding_keyword       found on its planted target in 20 of 20 seeds
+  own_overlap            found on its planted target in 20 of 20 seeds
+  findings that match no planted event: 0 across 20 seeds

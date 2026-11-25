@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 392" role="img" aria-labelledby="f3-title f3-desc" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="f3-title">The plan pipeline in its fixed order</title>
+  <desc id="f3-desc">Nine stages in order: holdout draw, rule families, scrub, vetoes, conflict table, confidence and expected value, run check and equity gate, caps, waves. Then the verdict pass. Counts are from the worked example with the holdout off: four candidate cards pass every stage and the verdict pass adds one sweep card, giving five cards, all ACT.</desc>
+  <style>
+    .f3-ink{fill:#17202b}.f3-mut{fill:#5b6775}.f3-h{font-size:12.5px;font-weight:700}.f3-b{font-size:11px}.f3-xs{font-size:10px}
+    .f3-cap{font-size:10px;font-weight:700;letter-spacing:.09em}
+    .f3-st{fill:#fff;stroke:#3b4cc0;stroke-width:1.1}.f3-n{font-size:12.5px;font-weight:700;fill:#3b4cc0}
+    .f3-ct{font-size:11px;font-weight:700;fill:#17202b}
+    .f3-ar{stroke:#5b6775;stroke-width:1.4;fill:none}
+    .f3-sp{fill:#e8ebfb;stroke:#3b4cc0;stroke-width:1.1}
+    .f3-rm{fill:#fbe9e3;stroke:#c2410c;stroke-width:1}.f3-kp{fill:#fdf1d8;stroke:#b45309;stroke-width:1}
+    .f3-ok{fill:#e6f3f1;stroke:#0f766e;stroke-width:1.1}
+  </style>
+  <defs><marker id="f3-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b6775"/></marker></defs>
+  <text class="f3-cap f3-mut" x="8" y="18">THE FIXED ORDER. BELOW EACH RULE: THE COUNT IN THE WORKED EXAMPLE, HOLDOUT OFF</text>
+  <rect class="f3-st" x="8" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="19" y="51">1</text><text class="f3-h f3-ink" x="32" y="51">Holdout</text>
+  <text class="f3-b f3-mut" x="19" y="70.0">stable 15% of</text>
+  <text class="f3-b f3-mut" x="19" y="84.5">entities, per month</text>
+  <line x1="19" y1="107" x2="129" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="19" y="123">0 held</text>
+  <text class="f3-xs f3-mut" x="19" y="136">default run: 3 held</text>
+  <rect class="f3-st" x="150" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="161" y="51">2</text><text class="f3-h f3-ink" x="174" y="51">Families</text>
+  <text class="f3-b f3-mut" x="161" y="70.0">propose cards; held</text>
+  <text class="f3-b f3-mut" x="161" y="84.5">entities are unseen</text>
+  <line x1="161" y1="107" x2="271" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="161" y="123">4 cards</text>
+  <text class="f3-xs f3-mut" x="161" y="136">default run: 3 cards</text>
+  <rect class="f3-st" x="292" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="303" y="51">3</text><text class="f3-h f3-ink" x="316" y="51">Scrub</text>
+  <text class="f3-b f3-mut" x="303" y="70.0">drop cards on held-</text>
+  <text class="f3-b f3-mut" x="303" y="84.5">out or dead entities</text>
+  <line x1="303" y1="107" x2="413" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="303" y="123">0 removed</text>
+  <rect class="f3-st" x="434" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="445" y="51">4</text><text class="f3-h f3-ink" x="458" y="51">Vetoes</text>
+  <text class="f3-b f3-mut" x="445" y="70.0">under test, no lever,</text>
+  <text class="f3-b f3-mut" x="445" y="84.5">not budget-bound</text>
+  <line x1="445" y1="107" x2="555" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="445" y="123">0 vetoed</text>
+  <rect class="f3-st" x="576" y="30" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="587" y="51">5</text><text class="f3-h f3-ink" x="600" y="51">Conflicts</text>
+  <text class="f3-b f3-mut" x="587" y="70.0">supply gate, merge,</text>
+  <text class="f3-b f3-mut" x="587" y="84.5">priority table, tension</text>
+  <line x1="587" y1="107" x2="697" y2="107" stroke="#c9d1da"/>
+  <text class="f3-ct" x="587" y="123">0 superseded</text>
+  <rect class="f3-st" x="8" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="19" y="193">6</text><text class="f3-h f3-ink" x="32" y="193">Scores</text>
+  <text class="f3-b f3-mut" x="19" y="212.0">confidence 25 to 90,</text>
+  <text class="f3-b f3-mut" x="19" y="226.5">expected value</text>
+  <line x1="19" y1="249" x2="129" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="19" y="265">confidence 67 to 79</text>
+  <rect class="f3-st" x="150" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="161" y="193">7</text><text class="f3-h f3-ink" x="174" y="193">Run check</text>
+  <text class="f3-b f3-mut" x="161" y="212.0">ROAS floor or spend</text>
+  <text class="f3-b f3-mut" x="161" y="226.5">ceiling; equity gate</text>
+  <line x1="161" y1="249" x2="271" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="161" y="265">0 vetoed</text>
+  <text class="f3-xs f3-mut" x="161" y="278">ROAS floor of 7: 1</text>
+  <rect class="f3-st" x="292" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="303" y="193">8</text><text class="f3-h f3-ink" x="316" y="193">Caps</text>
+  <text class="f3-b f3-mut" x="303" y="212.0">per family and lever;</text>
+  <text class="f3-b f3-mut" x="303" y="226.5">25 pending in all</text>
+  <line x1="303" y1="249" x2="413" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="303" y="265">0 capped</text>
+  <rect class="f3-st" x="434" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="445" y="193">9</text><text class="f3-h f3-ink" x="458" y="193">Waves</text>
+  <text class="f3-b f3-mut" x="445" y="212.0">cuts, then bids and</text>
+  <text class="f3-b f3-mut" x="445" y="226.5">tests, then raises</text>
+  <line x1="445" y1="249" x2="555" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="445" y="265">waves 1 to 3</text>
+  <rect class="f3-sp" x="576" y="172" width="132" height="112" rx="8"/>
+  <text class="f3-n" x="587" y="193"></text><text class="f3-h f3-ink" x="587" y="193">Verdict pass</text>
+  <text class="f3-b f3-mut" x="587" y="212.0">step 6: shaping,</text>
+  <text class="f3-b f3-mut" x="587" y="226.5">sweeps, eight gates</text>
+  <line x1="587" y1="249" x2="697" y2="249" stroke="#c9d1da"/>
+  <text class="f3-ct" x="587" y="265">+1 sweep card</text>
+  <text class="f3-xs f3-mut" x="587" y="278">1 retyped, 1 trimmed</text>
+  <path class="f3-ar" d="M140 86H149" marker-end="url(#f3-a)"/><path class="f3-ar" d="M282 86H291" marker-end="url(#f3-a)"/><path class="f3-ar" d="M424 86H433" marker-end="url(#f3-a)"/><path class="f3-ar" d="M566 86H575" marker-end="url(#f3-a)"/>
+  <path class="f3-ar" d="M140 228H149" marker-end="url(#f3-a)"/><path class="f3-ar" d="M282 228H291" marker-end="url(#f3-a)"/><path class="f3-ar" d="M424 228H433" marker-end="url(#f3-a)"/><path class="f3-ar" d="M566 228H575" marker-end="url(#f3-a)"/>
+  <path class="f3-ar" d="M642 142V157H74V170" marker-end="url(#f3-a)"/>
+  <path class="f3-ar" d="M642 284V300" marker-end="url(#f3-a)"/>
+  <rect class="f3-ok" x="556" y="302" width="156" height="32" rx="8"/>
+  <text class="f3-h f3-ink" x="634" y="322.5" text-anchor="middle">Plan: 5 cards, 5 ACT</text>
+  <text class="f3-b f3-ink" x="8" y="316.5"><tspan font-weight="700">Removed from the plan:</tspan> held-out, dead, merged duplicates, over a cap</text>
+  <text class="f3-b f3-ink" x="8" y="338.5"><tspan font-weight="700">Kept, with a status and a reason:</tspan> vetoed, superseded, tension</text>
+  <text class="f3-xs f3-mut" x="8" y="366">Under the marginal profile, budget cards are re-sized between stages 8 and 9.</text>
+  <text class="f3-xs f3-mut" x="8" y="381">Budget-neutral funding, when asked for, is settled after the verdict pass.</text>
+</svg>
