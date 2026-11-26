@@ -305,13 +305,16 @@ log_category_impressions       2%      -0.0044     -0.0052  None     13.981 -> 1
 own_organic_sov               -1%       0.0018      0.0045  None     0.301 -> 0.300
 own_availability               0%      -0.0005      0.0014  None     0.950 -> 0.947
 position                       0%       0.0001     -0.0003  None     3.502 -> 3.500
-not modelled: competitor_share, own_discount (folded), comp_discount (folded)
+own_discount                   0%       0.0000      0.0000  None     0.140 -> 0.140
+price_gap                      0%       0.0000      0.0000  None     1.311 -> 1.311
+comp_discount                  0%       0.0000      0.0000  None     0.140 -> 0.140
+not modelled: competitor_share
 sizing of the top lever: bid down 10% -> ROAS +0.19 (estimator lever-elasticity)
 ```
 
 The entity's ROAS fell 0.219 log-points. The bid, up from 137 to 195, accounts for 86% of that and
-both models agree. Paid share of voice slipping accounts for 13%. The two discount levers were
-folded into `price_gap` by the collinearity guard, and `competitor_share` had no coverage.
+both models agree. Paid share of voice slipping accounts for 13%. The three price levers did not
+move in this data, so they carry no share, and `competitor_share` had no coverage.
 
 `recommend()` then turns the attribution into at most three actions for the entity. For
 `cmp-generic` it returns "Cap bids on protein bar, healthy snack", "Raise bids on energy bar" and

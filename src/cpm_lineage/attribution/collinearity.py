@@ -19,6 +19,9 @@ PRICE_REPRESENTATIVE = "price_gap"
 
 _CFG = AttributionConfig()
 
+# Relative spread below which a column counts as constant.
+_CONSTANT_RTOL = 1e-9
+
 
 def vif(columns: Mapping[str, Sequence[float]], cols: Sequence[str],
         cfg: AttributionConfig | None = None) -> dict[str, float]:
@@ -48,10 +51,14 @@ def vif(columns: Mapping[str, Sequence[float]], cols: Sequence[str],
         a = np.column_stack([np.ones(m.shape[0]), np.delete(m, j, axis=1)])
         coef, *_ = np.linalg.lstsq(a, y, rcond=None)
         sst = float(np.sum((y - y.mean()) ** 2))
-        if sst <= 0.0:
+        # A column that is constant up to floating-point rounding has an sst of
+        # order 1e-30, not exactly 0; dividing by it turns rounding noise into
+        # an arbitrary VIF that differs between numpy versions.
+        if float(np.ptp(y)) <= _CONSTANT_RTOL * max(1.0, float(np.abs(y).max())):
             out[c] = 1.0  # a constant column carries no variance to inflate
             continue
         r2 = 1.0 - float(np.sum((y - a @ coef) ** 2)) / sst
+        r2 = min(1.0, max(0.0, r2))  # VIF is >= 1 by definition
         out[c] = 1.0 / max(cfg.vif_r2_floor, 1.0 - r2)
     return out
 

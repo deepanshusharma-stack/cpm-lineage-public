@@ -40,8 +40,10 @@ STEP 2  attribution: which lever (cmp-generic)
   comp_availability             -1%       0.0013      0.0013  None     0.901 -> 0.900
   own_availability               0%      -0.0005      0.0014  None     0.950 -> 0.947
   position                       0%       0.0001     -0.0003  None     3.502 -> 3.500
+  own_discount                   0%       0.0000      0.0000  None     0.140 -> 0.140
   price_gap                      0%       0.0000      0.0000  None     1.311 -> 1.311
-  not modelled: competitor_share, own_discount (folded), comp_discount (folded)
+  comp_discount                  0%       0.0000      0.0000  None     0.140 -> 0.140
+  not modelled: competitor_share
   sizing of the top lever: bid down 10% -> ROAS +0.19 (estimator lever-elasticity)
   recommendation: Cap bids on protein bar, healthy snack  [Bid / CPM inflation]
   recommendation: Raise bids on energy bar  [Paid share of voice slipping]

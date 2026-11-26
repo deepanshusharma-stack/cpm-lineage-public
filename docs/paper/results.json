@@ -1053,7 +1053,7 @@
     },
     {
      "lever": "log_category_impressions",
-     "contrib": -0.004386196938973736,
+     "contrib": -0.004386196938973734,
      "delta_contrib": -0.005208771894553486,
      "pct": 2.0,
      "jury": null,
@@ -1061,7 +1061,7 @@
     },
     {
      "lever": "own_organic_sov",
-     "contrib": 0.0017710015006051003,
+     "contrib": 0.0017710015006051007,
      "delta_contrib": 0.0044535077723883475,
      "pct": -1.0,
      "jury": null,
@@ -1070,14 +1070,14 @@
     {
      "lever": "comp_availability",
      "contrib": 0.001309969912757106,
-     "delta_contrib": 0.0012548037428682416,
+     "delta_contrib": 0.0012548037428682418,
      "pct": -1.0,
      "jury": null,
      "na": false
     },
     {
      "lever": "own_availability",
-     "contrib": -0.00046571929150049385,
+     "contrib": -0.0004657192915004937,
      "delta_contrib": 0.0014099256327457545,
      "pct": 0.0,
      "jury": null,
@@ -1085,8 +1085,16 @@
     },
     {
      "lever": "position",
-     "contrib": 9.203703477021592e-05,
-     "delta_contrib": -0.0002931348055582772,
+     "contrib": 9.203703477021591e-05,
+     "delta_contrib": -0.00029313480555827716,
+     "pct": 0.0,
+     "jury": null,
+     "na": false
+    },
+    {
+     "lever": "own_discount",
+     "contrib": 0.0,
+     "delta_contrib": 0.0,
      "pct": 0.0,
      "jury": null,
      "na": false
@@ -1100,23 +1108,15 @@
      "na": false
     },
     {
-     "lever": "competitor_share",
-     "contrib": 0.0,
-     "delta_contrib": 0.0,
-     "pct": null,
-     "jury": null,
-     "na": true
-    },
-    {
-     "lever": "own_discount",
-     "contrib": 0.0,
-     "delta_contrib": 0.0,
-     "pct": null,
-     "jury": null,
-     "na": true
-    },
-    {
      "lever": "comp_discount",
+     "contrib": 0.0,
+     "delta_contrib": 0.0,
+     "pct": 0.0,
+     "jury": null,
+     "na": false
+    },
+    {
+     "lever": "competitor_share",
      "contrib": 0.0,
      "delta_contrib": 0.0,
      "pct": null,
